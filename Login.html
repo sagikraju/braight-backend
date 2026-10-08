@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Login — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; }
+nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+nav a.on { color:var(--navy); border-bottom-color:var(--amber); }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(28px,4.4vw,38px); line-height:1.15; }
+.lede { font-size:clamp(15px,1.8vw,17px); color:var(--sub); margin:12px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+
+.auth-wrap { padding:64px 0 80px; display:flex; justify-content:center; }
+.auth-card { width:100%; max-width:420px; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:36px 32px; }
+.auth-head { text-align:center; margin-bottom:28px; }
+
+.form-group { margin-bottom:18px; }
+.form-group label { display:block; font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); margin-bottom:6px; }
+.form-group input, .form-group select {
+  width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg); color:var(--text); font-family:'Source Sans 3',Arial,sans-serif; font-size:15px;
+}
+.form-group input:focus, .form-group select:focus { outline:none; border-color:var(--moss); }
+
+.btn { display:inline-block; background:var(--amber); color:#17324F; font-weight:700; text-decoration:none; padding:12px 22px; border-radius:8px; font-family:inherit; font-size:15px; border:none; cursor:pointer; }
+.btn-block { display:block; width:100%; text-align:center; }
+
+.auth-switch { text-align:center; margin-top:20px; font-size:14px; color:var(--sub); }
+.auth-switch a { color:var(--navy); font-weight:600; border-bottom:2px solid var(--amber); text-decoration:none; }
+
+.form-error { display:none; background:#FBEAEA; border:1px solid #E3B8B8; color:#A23B3B; font-size:13.5px; padding:10px 12px; border-radius:8px; margin-bottom:16px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .form-error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+}
+:root[data-theme="dark"] .form-error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+.btn[disabled] { opacity:0.6; cursor:default; }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+</style>
+
+<style id="dynamic-active-tab">
+nav a.active, .nav a.active, header a.active {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 6px !important;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <nav>
+      <a href="index.html#/schools">Schools &amp; Students</a>
+      <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
+      <a href="SDG.html">SDG Goals</a>
+      <a href="sdg-dashboard.html">SDG Dashboard</a><a href="insights.html">Data Insights</a>
+      <a href="Login.html">Login</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-head">
+          <div class="kicker">Member Access</div>
+          <h1>Welcome back</h1>
+          <p class="lede">Log in to your workspace.</p>
+        </div>
+
+        <form id="login-form">
+          <div id="login-error" class="form-error"></div>
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" autocomplete="username" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn btn-block" id="login-submit">Log In</button>
+        </form>
+
+        <div class="auth-switch">
+          New here? <a href="NewUser.html">Sign Up</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script>
+// Point this at wherever app.py is running. For testing on the same laptop
+// that's http://localhost:5000; for other devices on your network, use
+// your laptop's LAN IP instead, e.g. http://192.168.1.23:5000
+const API_BASE = "https://api.braight.in";
+
+document.getElementById('login-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const errorBox = document.getElementById('login-error');
+  const submitBtn = document.getElementById('login-submit');
+  errorBox.style.display = 'none';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Logging in\u2026';
+
+  try {
+    const res = await fetch(API_BASE + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errorBox.textContent = data.error || 'Login failed.';
+      errorBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Log In';
+      return;
+    }
+    sessionStorage.setItem('braight_user', JSON.stringify(data.user));
+    window.location.href = 'Workspace.html';
+  } catch (err) {
+    errorBox.textContent = 'Could not reach the server. Is the backend running?';
+    errorBox.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Log In';
+  }
+});
+</script>
+<script>
+(function(){
+  const path=(location.pathname.split('/').pop()||'index.html').toLowerCase();
+  document.querySelectorAll('nav a, .nav a, header a').forEach(a=>{
+    const href=(a.getAttribute('href')||'').split('#')[0].split('?')[0].toLowerCase();
+    if(!href || href.startsWith('http')) return;
+    const target=href.split('/').pop()||'index.html';
+    const isHome=(path==='index.html'||path==='')&&(target==='index.html');
+    const isMatch=target===path || (path==='sdg.html'&&target==='sdg.html');
+    a.classList.toggle('active',isHome||isMatch);
+    a.setAttribute('aria-current',(isHome||isMatch)?'page':'false');
+  });
+})();
+</script>
+</body>
+</html>
