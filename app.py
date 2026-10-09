@@ -23,7 +23,7 @@ your home network.
 import os
 
 import psycopg2
-import psycopg2.extras
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
