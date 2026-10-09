@@ -22,7 +22,7 @@ your home network.
 
 import os
 
-import psycopg2
+import psycopg
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -52,9 +52,14 @@ DB_CONFIG = {
     "password": os.environ.get("DB_PASSWORD", ""),
 }
 
-
 def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg.connect(
+        host=DB_CONFIG["host"],
+        port=DB_CONFIG["port"],
+        dbname=DB_CONFIG["dbname"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"]
+    )
 
 
 @app.route("/api/health", methods=["GET"])
