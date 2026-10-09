@@ -1,4 +1,4 @@
 # test.py
 print("Starting test...")
 
-exit 0
+sys.exit(0)
