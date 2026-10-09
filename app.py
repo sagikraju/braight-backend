@@ -47,7 +47,7 @@ ALLOWED_USER_TYPES = {"Student", "Jobseeker", "ADMIN"}
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "dpg-db3q520473hc73euv06g-a"),
     "port": os.environ.get("DB_PORT", "5432"),
-    "dbname": os.environ.get("DB_NAME", "braight_db"),
+    "dbname": os.environ.get("DB_NAME", "braight"),
     "user": os.environ.get("DB_USER", "anvisagi"),
     "password": os.environ.get("DB_PASSWORD", "jTi3fIz48SRFXiGdjKfgfrHwSwxwisYs"),
 }
