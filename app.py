@@ -29,18 +29,7 @@ from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-#CORS(app)  # Allows the static HTML pages (served from a different origin, e.g. Netlify) to call this API.
-CORS(
-    app,
-    resources={
-        r"/api/*": {
-            "origins": [
-                "https://braight.in",
-                "https://www.braight.in"
-            ]
-        }
-    }
-)
+CORS(app)  # Allows the static HTML pages (served from a different origin, e.g. Netlify) to call this API.
 
 ALLOWED_USER_TYPES = {"Student", "Jobseeker", "ADMIN"}
 
