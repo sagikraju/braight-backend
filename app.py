@@ -49,7 +49,7 @@ DB_CONFIG = {
     "port": os.environ.get("DB_PORT", "5432"),
     "dbname": os.environ.get("DB_NAME", "braight_db"),
     "user": os.environ.get("DB_USER", "anvisagi"),
-    "password": os.environ.get("DB_PASSWORD", ""),
+    "password": os.environ.get("DB_PASSWORD", "jTi3fIz48SRFXiGdjKfgfrHwSwxwisYs"),
 }
 
 def get_connection():
