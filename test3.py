@@ -1,5 +1,5 @@
-# test.py
-import sys
-print("Starting test...")
+# test3.py
 
-sys.exit(0)
+import psycopg
+
+print("SUCCESS: psycopg imported")
