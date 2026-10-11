@@ -1,64 +1,85 @@
 """
-brAIght backend -- minimal signup/login API backed by PostgreSQL.
+brAIght backend -- signup/login API backed by a cloud PostgreSQL database.
 
-Setup:
-    1. Create a Postgres database and run schema.sql against it (see README.md).
-    2. pip install -r requirements.txt
-    3. Set the DB_* environment variables below if your setup differs from
-       the defaults (or just edit the defaults directly for local testing).
-    4. python app.py
-       The API listens on 0.0.0.0:5000, so it's reachable from other
-       devices on your network at http://<your-laptop-LAN-IP>:5000.
+Configuration is done with environment variables, so no secrets live in
+this file (and none end up in a git repository):
+
+    DATABASE_URL     Full connection string from your host's dashboard.
+                     Use the "Internal" URL when this API runs on the same
+                     cloud provider/region as the database, or the
+                     "External" URL when testing from your laptop. If this
+                     is set, the DB_* variables below are ignored.
+    DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_SSLMODE
+                     Used only when DATABASE_URL is not set.
+    ALLOWED_ORIGINS  Comma-separated sites allowed to call this API, e.g.
+                     https://zesty-palmier-26ddfc.netlify.app
+                     Defaults to "*" (any site) -- set it before going live.
+
+Run locally:    python app.py       (listens on 127.0.0.1:5000)
+Run in cloud:   gunicorn app:app    (the host supplies the PORT variable)
 
 Endpoints:
-    GET  /api/health          -> {"status": "ok"} if the DB connection works
-    POST /api/signup          -> create a user
-    POST /api/login           -> verify username/password
-
-This is a minimal reference implementation, not a production-hardened
-service -- see the security notes in README.md before exposing it beyond
-your home network.
+    GET  /api/health   -> {"status": "ok"} if the database is reachable
+    POST /api/signup   -> create a user
+    POST /api/login    -> verify username/password
 """
 
+import logging
 import os
 
 import psycopg
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from psycopg import errors as pg_errors
+from psycopg.rows import dict_row
 from werkzeug.security import check_password_hash, generate_password_hash
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("braight-backend")
+
 app = Flask(__name__)
-CORS(app)  # Allows the static HTML pages (served from a different origin, e.g. Netlify) to call this API.
+
+# Which sites may call this API from a browser. Trailing slashes are
+# stripped because an origin never has one.
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "*").strip()
+if _origins_env == "*":
+    ALLOWED_ORIGINS = "*"
+    logger.warning("ALLOWED_ORIGINS is not set: any website may call this API.")
+else:
+    ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _origins_env.split(",") if o.strip()]
+CORS(app, origins=ALLOWED_ORIGINS)
 
 ALLOWED_USER_TYPES = {"Student", "Jobseeker", "ADMIN"}
 
-DB_CONFIG = {
-    "host": os.environ.get("DB_HOST", "dpg-db3q520473hc73euv06g-a"),
-    "port": os.environ.get("DB_PORT", "5432"),
-    "dbname": os.environ.get("DB_NAME", "braight"),
-    "user": os.environ.get("DB_USER", "anvisagi"),
-    "password": os.environ.get("DB_PASSWORD", "jTi3fIz48SRFXiGdjKfgfrHwSwxwisYs"),
-}
+# Used so a login for an unknown username takes about as long as one for a
+# real username (otherwise response time reveals which usernames exist).
+_DUMMY_HASH = generate_password_hash("not-a-real-password")
+
 
 def get_connection():
+    url = os.environ.get("DATABASE_URL")
+    if url:
+        return psycopg.connect(url, connect_timeout=10)
     return psycopg.connect(
-        host=DB_CONFIG["host"],
-        port=DB_CONFIG["port"],
-        dbname=DB_CONFIG["dbname"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"]
+        host=os.environ.get("DB_HOST", "dpg-db3q520473hc73euv06g-a"),
+        port=os.environ.get("DB_PORT", "5432"),
+        dbname=os.environ.get("DB_NAME", "braight"),
+        user=os.environ.get("DB_USER", "anvisagi"),
+        password=os.environ.get("DB_PASSWORD", "jTi3fIz48SRFXiGdjKfgfrHwSwxwisYs"),
+        sslmode=os.environ.get("DB_SSLMODE", "prefer"),
+        connect_timeout=10,
     )
 
 
 @app.route("/api/health", methods=["GET"])
 def health():
     try:
-        conn = get_connection()
-        conn.close()
+        with get_connection():
+            pass
         return jsonify({"status": "ok"}), 200
-    except Exception as exc:
-        return jsonify({"status": "error", "detail": str(exc)}), 500
+    except Exception:
+        logger.exception("health check failed")
+        return jsonify({"status": "error"}), 500
 
 
 @app.route("/api/signup", methods=["POST"])
@@ -83,8 +104,7 @@ def signup():
     password_hash = generate_password_hash(password)
 
     try:
-        conn = get_connection()
-        with conn, conn.cursor() as cur:
+        with get_connection() as conn, conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO users (first_name, last_name, username, password_hash, user_type)
@@ -94,11 +114,11 @@ def signup():
                 (first_name, last_name, username, password_hash, user_type),
             )
             row = cur.fetchone()
-        conn.close()
-    except psycopg2.errors.UniqueViolation:
+    except pg_errors.UniqueViolation:
         return jsonify({"error": "That username is already taken."}), 409
-    except Exception as exc:
-        return jsonify({"error": "Could not create account.", "detail": str(exc)}), 500
+    except Exception:
+        logger.exception("signup failed")
+        return jsonify({"error": "Could not create account."}), 500
 
     user = {
         "id": row[0], "firstName": row[1], "lastName": row[2],
@@ -117,19 +137,22 @@ def login():
         return jsonify({"error": "Username and password are required."}), 400
 
     try:
-        conn = get_connection()
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 "SELECT id, first_name, last_name, username, password_hash, user_type "
                 "FROM users WHERE username = %s",
                 (username,),
             )
             row = cur.fetchone()
-        conn.close()
-    except Exception as exc:
-        return jsonify({"error": "Login failed.", "detail": str(exc)}), 500
+    except Exception:
+        logger.exception("login failed")
+        return jsonify({"error": "Login failed."}), 500
 
-    if row is None or not check_password_hash(row["password_hash"], password):
+    if row is None:
+        check_password_hash(_DUMMY_HASH, password)  # keep timing similar
+        return jsonify({"error": "Invalid username or password."}), 401
+
+    if not check_password_hash(row["password_hash"], password):
         return jsonify({"error": "Invalid username or password."}), 401
 
     user = {
@@ -139,10 +162,7 @@ def login():
     return jsonify({"user": user}), 200
 
 
-#if __name__ == "__main__":
-    # 0.0.0.0 so other devices on the network can reach this, not just localhost.
- #   app.run(host="0.0.0.0", port=5000, debug=True)
-
 if __name__ == "__main__":
+    # Local development only. In the cloud, gunicorn runs the app instead.
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="127.0.0.1", port=port)
