@@ -22,6 +22,7 @@ Endpoints:
     GET  /api/health   -> {"status": "ok"} if the database is reachable
     POST /api/signup   -> create a user
     POST /api/login    -> verify username/password
+    POST /api/change-password -> change a password (needs the current one)
 """
 
 import logging
@@ -160,6 +161,47 @@ def login():
         "username": row["username"], "userType": row["user_type"],
     }
     return jsonify({"user": user}), 200
+
+
+@app.route("/api/change-password", methods=["POST"])
+def change_password():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    old_password = data.get("oldPassword") or ""
+    new_password = data.get("newPassword") or ""
+
+    if not username or not old_password or not new_password:
+        return jsonify({"error": "All fields are required."}), 400
+
+    if len(new_password) < 8:
+        return jsonify({"error": "New password must be at least 8 characters."}), 400
+
+    if new_password == old_password:
+        return jsonify({"error": "New password must be different from the current one."}), 400
+
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+            row = cur.fetchone()
+            if row is None:
+                check_password_hash(_DUMMY_HASH, old_password)  # keep timing similar
+                valid = False
+            else:
+                valid = check_password_hash(row["password_hash"], old_password)
+            if valid:
+                cur.execute(
+                    "UPDATE users SET password_hash = %s WHERE username = %s",
+                    (generate_password_hash(new_password), username),
+                )
+    except Exception:
+        logger.exception("change-password failed")
+        return jsonify({"error": "Could not change password."}), 500
+
+    if not valid:
+        # Same message whether the username or the old password was wrong.
+        return jsonify({"error": "Username or current password is incorrect."}), 401
+
+    return jsonify({"message": "Password changed."}), 200
 
 
 if __name__ == "__main__":
