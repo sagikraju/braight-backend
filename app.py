@@ -6,15 +6,27 @@ Required environment:
   DB_USER, DB_PASSWORD and optionally DB_SSLMODE.
   ALLOWED_ORIGINS: comma-separated allowed frontend origins.
 
+Required one-time database migration (run BEFORE deploying this file):
+
+  ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS admin_session_hash TEXT,
+    ADD COLUMN IF NOT EXISTS admin_session_last_active TIMESTAMPTZ;
+
+  CREATE UNIQUE INDEX IF NOT EXISTS users_admin_session_hash_idx
+    ON users (admin_session_hash) WHERE admin_session_hash IS NOT NULL;
+
 Run locally: python app.py
 Render start command: gunicorn app:app
 """
 
+import hashlib
 import logging
 import os
+import secrets
+from functools import wraps
 
 import psycopg
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 from psycopg import errors as pg_errors
 from psycopg.rows import dict_row
@@ -30,13 +42,25 @@ _origins_env = os.environ.get(
     "https://braight.in,https://www.braight.in,https://zesty-palmier-26ddfc.netlify.app"
 ).strip()
 ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _origins_env.split(",") if o.strip()]
-CORS(app, origins=ALLOWED_ORIGINS)
+CORS(
+    app,
+    origins=ALLOWED_ORIGINS,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "OPTIONS"],
+)
 
 # ADMIN accounts can still log in if already present, but public signup is
 # restricted to Student and Jobseeker.
 ALLOWED_SIGNUP_TYPES = {"Student", "Jobseeker"}
+ALLOWED_STATUS_VALUES = {"active", "inactive", "locked"}
 MAX_FAILED_ATTEMPTS = 3
 INACTIVE_AFTER_DAYS = 60
+
+# Admin sessions are server-side and expire when idle. The admin page logs the
+# user out after 30 s without any activity; the server allows a little longer
+# (heartbeat interval + network latency) so the two never disagree.
+ADMIN_IDLE_TIMEOUT_SECONDS = 45
+
 _DUMMY_HASH = generate_password_hash("not-a-real-password")
 
 
@@ -49,7 +73,7 @@ def get_connection():
     required = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
     missing = [name for name in required if not os.environ.get(name)]
     if missing:
-        raise RuntimeError("Missing database environment variable(s) চলচ্চিত্রে: " + ", ".join(missing))
+        raise RuntimeError("Missing database environment variable(s): " + ", ".join(missing))
 
     kwargs = {
         "host": os.environ["DB_HOST"],
@@ -63,6 +87,65 @@ def get_connection():
     if sslmode:
         kwargs["sslmode"] = sslmode
     return psycopg.connect(**kwargs)
+
+
+# --------------------------------------------------------------------------
+# Admin session helpers
+# --------------------------------------------------------------------------
+
+def _hash_token(token):
+    """Only a SHA-256 hash of the session token is stored in the database."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _bearer_token():
+    header = request.headers.get("Authorization", "")
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() != "bearer":
+        return ""
+    return token.strip()
+
+
+def require_admin(view):
+    """
+    Allow the request only if it carries a valid, non-expired admin session
+    token. Validation and the 'last active' refresh happen in one atomic UPDATE,
+    so every authenticated admin call also keeps the session alive.
+    """
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        token = _bearer_token()
+        if not token:
+            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+        try:
+            with get_connection() as conn, conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET admin_session_last_active = NOW()
+                    WHERE admin_session_hash = %s
+                      AND UPPER(TRIM(user_type)) = 'ADMIN'
+                      AND admin_session_last_active
+                          > NOW() - (%s::int * INTERVAL '1 second')
+                    RETURNING username
+                    """,
+                    (_hash_token(token), ADMIN_IDLE_TIMEOUT_SECONDS),
+                )
+                row = cur.fetchone()
+        except Exception:
+            logger.exception("admin session check failed")
+            return jsonify({"error": "Could not verify session."}), 500
+
+        if row is None:
+            return jsonify({
+                "error": "Your session has timed out. Please re-login.",
+                "code": "SESSION_EXPIRED",
+            }), 401
+
+        g.admin_username = row[0]
+        return view(*args, **kwargs)
+
+    return wrapper
 
 
 @app.route("/api/health", methods=["GET"])
@@ -137,12 +220,15 @@ def login():
             cur.execute(
                 """
                 SELECT id, first_name, last_name, username, password_hash, user_type,
-                       status, last_login, created_at, failed_login_attempts
+                       status, last_login, created_at, failed_login_attempts,
+                       (admin_session_hash IS NOT NULL
+                        AND admin_session_last_active
+                            > NOW() - (%s::int * INTERVAL '1 second')) AS has_active_session
                 FROM users
                 WHERE username = %s
                 FOR UPDATE
                 """,
-                (username,),
+                (ADMIN_IDLE_TIMEOUT_SECONDS, username),
             )
             row = cur.fetchone()
 
@@ -152,8 +238,9 @@ def login():
 
             status = (row["status"] or "").strip().lower()
             user_type = (row["user_type"] or "").strip()
+            is_admin = user_type.upper() == "ADMIN"
 
-            if user_type.upper() != "ADMIN":
+            if not is_admin:
                 if status == "locked":
                     return jsonify({"error": "Your account is locked after three unsuccessful login attempts. Please contact the administrator."}), 403
                 if status == "inactive":
@@ -188,14 +275,37 @@ def login():
                 remaining = MAX_FAILED_ATTEMPTS - attempts
                 return jsonify({"error": f"Invalid username or password. {remaining} attempt(s) remaining before the account is locked."}), 401
 
-            cur.execute(
-                """
-                UPDATE users
-                SET last_login = NOW(), failed_login_attempts = 0
-                WHERE id = %s
-                """,
-                (row["id"],),
-            )
+            session_token = None
+            if is_admin:
+                # Password is correct. Only one live session per admin: refuse a
+                # second login (without touching the existing session) while the
+                # first one is still active. The row is locked FOR UPDATE above,
+                # so two simultaneous logins cannot both get through.
+                if row["has_active_session"]:
+                    return jsonify({
+                        "error": "This admin account already has an active session. "
+                                 "Please log out from the other session, or wait for it to time out, and try again."
+                    }), 409
+
+                session_token = secrets.token_urlsafe(32)
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET last_login = NOW(), failed_login_attempts = 0,
+                        admin_session_hash = %s, admin_session_last_active = NOW()
+                    WHERE id = %s
+                    """,
+                    (_hash_token(session_token), row["id"]),
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET last_login = NOW(), failed_login_attempts = 0
+                    WHERE id = %s
+                    """,
+                    (row["id"],),
+                )
 
             user = {
                 "id": row["id"],
@@ -204,13 +314,45 @@ def login():
                 "username": row["username"],
                 "userType": row["user_type"],
             }
+            if session_token:
+                # Stored by Login.html together with the user object.
+                user["sessionToken"] = session_token
         return jsonify({"user": user}), 200
     except Exception:
         logger.exception("login failed")
         return jsonify({"error": "Login failed."}), 500
 
 
+@app.route("/api/admin/heartbeat", methods=["POST"])
+@require_admin
+def admin_heartbeat():
+    # require_admin has already refreshed the session's last-active time.
+    return jsonify({"status": "ok"}), 200
+
+
+@app.route("/api/admin/logout", methods=["POST"])
+def admin_logout():
+    """Release the admin session immediately (no expiry check needed)."""
+    token = _bearer_token()
+    if token:
+        try:
+            with get_connection() as conn, conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET admin_session_hash = NULL, admin_session_last_active = NULL
+                    WHERE admin_session_hash = %s
+                    """,
+                    (_hash_token(token),),
+                )
+        except Exception:
+            logger.exception("admin_logout failed")
+            return jsonify({"error": "Could not log out."}), 500
+    return jsonify({"message": "Logged out."}), 200
+
+
 @app.route("/api/admin/users", methods=["GET"])
+@require_admin
 def admin_get_users():
     try:
         with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
@@ -232,9 +374,12 @@ def admin_get_users():
 
 
 @app.route("/api/admin/users/<username>/status", methods=["PUT"])
+@require_admin
 def admin_update_status(username):
     data = request.get_json(silent=True) or {}
-    new_status = data.get("status", "active")
+    new_status = str(data.get("status", "active")).strip().lower()
+    if new_status not in ALLOWED_STATUS_VALUES:
+        return jsonify({"error": "Invalid status."}), 400
     try:
         with get_connection() as conn, conn.cursor() as cur:
             cur.execute(
@@ -245,6 +390,9 @@ def admin_update_status(username):
                 """,
                 (new_status, username),
             )
+            updated = cur.rowcount
+        if updated == 0:
+            return jsonify({"error": "User not found."}), 404
         return jsonify({"message": "User status updated successfully."}), 200
     except Exception:
         logger.exception("admin_update_status failed")
