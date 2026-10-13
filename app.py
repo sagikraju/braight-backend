@@ -46,11 +46,10 @@ def get_connection():
     if url:
         return psycopg.connect(url, connect_timeout=10)
 
-    # No database credentials are hard-coded in this source file.
     required = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
     missing = [name for name in required if not os.environ.get(name)]
     if missing:
-        raise RuntimeError("Missing database environment variable(s): " + ", ".join(missing))
+        raise RuntimeError("Missing database environment variable(s) চলচ্চিত্রে: " + ", ".join(missing))
 
     kwargs = {
         "host": os.environ["DB_HOST"],
@@ -134,8 +133,6 @@ def login():
         return jsonify({"error": "Username and password are required."}), 400
 
     try:
-        # Lock this user's row while checking/updating the attempt counter,
-        # so simultaneous failed attempts cannot bypass the three-attempt limit.
         with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
@@ -154,38 +151,39 @@ def login():
                 return jsonify({"error": "Invalid username or password."}), 401
 
             status = (row["status"] or "").strip().lower()
-            if status == "locked":
-                return jsonify({"error": "Your account is locked after three unsuccessful login attempts. Please contact the administrator."}), 403
-            if status == "inactive":
-                return jsonify({"error": "Your account is inactive because there has been no activity for 60 days. Please contact the administrator."}), 403
-            if status != "active":
-                return jsonify({"error": "Your account is not active. Please contact the administrator."}), 403
+            user_type = (row["user_type"] or "").strip()
 
-            # If the account has never logged in, use created_at as the last
-            # activity reference; otherwise use last_login.
-            cur.execute(
-                """
-                SELECT COALESCE(%s::timestamptz, %s::timestamptz)
-                       < NOW() - (%s * INTERVAL '1 day') AS is_inactive
-                """,
-                (row["last_login"], row["created_at"], INACTIVE_AFTER_DAYS),
-            )
-            is_inactive = cur.fetchone()["is_inactive"]
-            if is_inactive:
-                cur.execute("UPDATE users SET status = 'inactive' WHERE id = %s", (row["id"],))
-                return jsonify({"error": "Your account is inactive because there has been no activity for 60 days. Please contact the administrator."}), 403
+            if user_type.upper() != "ADMIN":
+                if status == "locked":
+                    return jsonify({"error": "Your account is locked after three unsuccessful login attempts. Please contact the administrator."}), 403
+                if status == "inactive":
+                    return jsonify({"error": "Your account is inactive because there has been no activity for 60 days. Please contact the administrator."}), 403
+                if status != "active":
+                    return jsonify({"error": "Your account is not active. Please contact the administrator."}), 403
+
+                cur.execute(
+                    """
+                    SELECT COALESCE(%s::timestamptz, %s::timestamptz)
+                           < NOW() - (%s * INTERVAL '1 day') AS is_inactive
+                    """,
+                    (row["last_login"], row["created_at"], INACTIVE_AFTER_DAYS),
+                )
+                is_inactive = cur.fetchone()["is_inactive"]
+                if is_inactive:
+                    cur.execute("UPDATE users SET status = 'inactive' WHERE id = %s", (row["id"],))
+                    return jsonify({"error": "Your account is inactive because there has been no activity for 60 days. Please contact the administrator."}), 403
 
             if not check_password_hash(row["password_hash"], password):
                 attempts = int(row["failed_login_attempts"] or 0) + 1
                 if attempts >= MAX_FAILED_ATTEMPTS:
                     cur.execute(
                         "UPDATE users SET failed_login_attempts = %s, status = 'locked' WHERE id = %s",
-                        (attempts, row["id"]),
+                        (attempts, row["id"],),
                     )
                     return jsonify({"error": "Your account has been locked after three unsuccessful login attempts. Please contact the administrator."}), 403
                 cur.execute(
                     "UPDATE users SET failed_login_attempts = %s WHERE id = %s",
-                    (attempts, row["id"]),
+                    (attempts, row["id"],),
                 )
                 remaining = MAX_FAILED_ATTEMPTS - attempts
                 return jsonify({"error": f"Invalid username or password. {remaining} attempt(s) remaining before the account is locked."}), 401
@@ -210,6 +208,47 @@ def login():
     except Exception:
         logger.exception("login failed")
         return jsonify({"error": "Login failed."}), 500
+
+
+@app.route("/api/admin/users", methods=["GET"])
+def admin_get_users():
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT username, first_name, last_name, last_login, user_type, status
+                FROM users
+                ORDER BY id ASC
+                """
+            )
+            users = cur.fetchall()
+            for u in users:
+                if u["last_login"]:
+                    u["last_login"] = u["last_login"].isoformat()
+        return jsonify({"users": users}), 200
+    except Exception:
+        logger.exception("admin_get_users failed")
+        return jsonify({"error": "Could not retrieve users."}), 500
+
+
+@app.route("/api/admin/users/<username>/status", methods=["PUT"])
+def admin_update_status(username):
+    data = request.get_json(silent=True) or {}
+    new_status = data.get("status", "active")
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET status = %s, failed_login_attempts = 0
+                WHERE username = %s
+                """,
+                (new_status, username),
+            )
+        return jsonify({"message": "User status updated successfully."}), 200
+    except Exception:
+        logger.exception("admin_update_status failed")
+        return jsonify({"error": "Could not update user status."}), 500
 
 
 @app.route("/api/change-password", methods=["POST"])
