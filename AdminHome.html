@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin Dashboard — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D; --green:#2E7D32; --row-alt:#F4F7FB;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+    --green:#4CAF50; --row-alt:#182333;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  --green:#4CAF50; --row-alt:#182333;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+}
+a { color:inherit; }
+.wrap { max-width:1200px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+.user-info { display:flex; align-items:center; gap:16px; font-size:14px; color:var(--sub); }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; }
+.logout-btn:hover { background:var(--border); }
+
+main { padding:40px 0 60px; }
+h1 { font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--navy); margin-bottom:8px; }
+.lede { color:var(--sub); margin-bottom:24px; font-size:15px; }
+
+.table-container { width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+table { width:100%; border-collapse:collapse; text-align:left; font-size:14.5px; }
+th, td { padding:14px 18px; border-bottom:1px solid var(--border); }
+th { background:var(--navy); color:#FFFFFF; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:0.03em; }
+tr:nth-child(even) td { background-color: var(--row-alt); }
+tr:last-child td { border-bottom:none; }
+
+.status-active { color: var(--green); font-weight: 600; }
+.status-link { color: var(--amber); text-decoration: underline; cursor: pointer; font-weight: 600; }
+
+.modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; justify-content:center; align-items:center; }
+.modal { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:400px; width:90%; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
+.modal h3 { font-family:'Source Serif 4',Georgia,serif; color:var(--navy); margin-bottom:12px; font-size:20px; }
+.modal p { color:var(--sub); margin-bottom:20px; font-size:15px; }
+.modal-actions { display:flex; gap:12px; justify-content:center; }
+.modal-btn { padding:10px 20px; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; border:none; }
+.btn-confirm { background:var(--amber); color:#17324F; }
+.btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text); }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; margin-top:60px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="#">br<span class="ai">AI</span>ght <span style="font-size:14px; font-weight:normal; color:var(--sub); margin-left:8px;">| Admin Portal</span></a>
+    <div class="user-info">
+      <span id="admin-welcome">Welcome, Admin</span>
+      <button class="logout-btn" id="logout-btn">Log Out</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>User Management Dashboard</h1>
+    <p class="lede">Overview of all registered accounts and system statuses.</p>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Last Login</th>
+            <th>User Type</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="users-table-body">
+          <tr><td colspan="6" style="text-align:center; color:var(--sub);">Loading users...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="status-modal">
+  <div class="modal">
+    <h3 id="modal-title">Account Status</h3>
+    <p id="modal-message">Do you wish to unlock your account?</p>
+    <div class="modal-actions">
+      <button class="modal-btn btn-cancel" id="modal-cancel">Cancel</button>
+      <button class="modal-btn btn-confirm" id="modal-confirm">Yes, Unlock</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script>
+const API_BASE = "https://braight-backend.onrender.com";
+let selectedUserForUpdate = null;
+
+const userSession = JSON.parse(sessionStorage.getItem('braight_user') || 'null');
+if (!userSession || userSession.userType.toUpperCase() !== 'ADMIN') {
+  window.location.href = 'Login.html';
+} else {
+  document.getElementById('admin-welcome').textContent = `Welcome, ${userSession.firstName || userSession.username}`;
+}
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+  sessionStorage.removeItem('braight_user');
+  window.location.href = 'Login.html';
+});
+
+async function fetchUsers() {
+  const tbody = document.getElementById('users-table-body');
+  try {
+    const res = await fetch(API_BASE + '/api/admin/users');
+    const data = await res.json();
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#A23B3B;">Failed to load users.</td></tr>`;
+      return;
+    }
+
+    if (!data.users || data.users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--sub);">No users found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    data.users.forEach(user => {
+      const tr = document.createElement('tr');
+      const statusLower = (user.status || '').toLowerCase();
+      
+      let statusHtml = '';
+      if (statusLower === 'active') {
+        statusHtml = `<span class="status-active">Active</span>`;
+      } else {
+        const displayStatus = user.status || 'Inactive';
+        const promptText = statusLower === 'locked' 
+          ? 'Do you wish to Unlock your account?' 
+          : `Do you wish to update status for ${user.username} from '${displayStatus}' to 'Active'?`;
+        
+        statusHtml = `<span class="status-link" data-username="${user.username}" data-status="${user.status}" data-prompt="${promptText}">${user.status}</span>`;
+      }
+
+      tr.innerHTML = `
+        <td>${escapeHtml(user.username)}</td>
+        <td>${escapeHtml(user.first_name || '')}</td>
+        <td>${escapeHtml(user.last_name || '')}</td>
+        <td>${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
+        <td>${escapeHtml(user.user_type || '')}</td>
+        <td>${statusHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.querySelectorAll('.status-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        selectedUserForUpdate = e.target.getAttribute('data-username');
+        const promptMsg = e.target.getAttribute('data-prompt');
+        document.getElementById('modal-message').textContent = promptMsg;
+        document.getElementById('status-modal').style.display = 'flex';
+      });
+    });
+
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#A23B3B;">Could not connect to server.</td></tr>`;
+  }
+}
+
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  document.getElementById('status-modal').style.display = 'none';
+  selectedUserForUpdate = null;
+});
+
+document.getElementById('modal-confirm').addEventListener('click', async () => {
+  if (!selectedUserForUpdate) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/users/${selectedUserForUpdate}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'active' })
+    });
+    if (res.ok) {
+      document.getElementById('status-modal').style.display = 'none';
+      selectedUserForUpdate = null;
+      fetchUsers();
+    } else {
+      alert('Failed to update status.');
+    }
+  } catch (err) {
+    alert('Server connection error.');
+  }
+});
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+fetchUsers();
+</script>
+</body>
+</html>
