@@ -39,8 +39,20 @@ header .wrap { display:flex; align-items:center; justify-content:space-between; 
 .logout-btn:hover { background:var(--border); }
 
 main { padding:40px 0 60px; }
-h1 { font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--navy); margin-bottom:8px; }
-.lede { color:var(--sub); margin-bottom:24px; font-size:15px; }
+
+/* Left dashboard */
+.layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:32px; align-items:start; }
+.sidebar { position:sticky; top:96px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 12px; }
+.side-title { font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); padding:0 12px 10px; }
+.sidebar nav { display:flex; flex-direction:column; gap:4px; }
+.side-link { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-radius:8px; border-left:3px solid transparent; text-decoration:none; color:var(--text); font-size:14.5px; font-weight:500; }
+.side-link:hover { background:var(--row-alt); }
+.side-link.on { color:var(--navy); font-weight:600; border-left-color:var(--amber); background:var(--row-alt); }
+.side-link.soon { color:var(--sub); cursor:default; }
+.soon-tag { font-size:11px; font-weight:600; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 8px; }
+
+h1 { font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--navy); margin:0 0 8px; }
+.lede { color:var(--sub); margin:0 0 24px; font-size:15px; }
 
 .table-container { width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
 table { width:100%; border-collapse:collapse; text-align:left; font-size:14.5px; }
@@ -62,7 +74,6 @@ tr:last-child td { border-bottom:none; }
 .status-link:hover { opacity:0.8; }
 
 .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; justify-content:center; align-items:center; }
-#timeout-modal { z-index:200; background:rgba(0,0,0,0.65); }
 .modal { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:400px; width:90%; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
 .modal h3 { font-family:'Source Serif 4',Georgia,serif; color:var(--navy); margin:0 0 12px; font-size:20px; }
 .modal p { color:var(--sub); margin:0 0 20px; font-size:15px; }
@@ -75,12 +86,18 @@ tr:last-child td { border-bottom:none; }
 footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; margin-top:60px; }
 footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
 footer b { color:var(--navy); }
+
+@media (max-width:800px) {
+  .layout { grid-template-columns:1fr; gap:24px; }
+  .sidebar { position:static; }
+  .sidebar nav { flex-direction:row; flex-wrap:wrap; }
+}
 </style>
 </head>
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="#">br<span class="ai">AI</span>ght <span style="font-size:14px; font-weight:normal; color:var(--sub); margin-left:8px;">| Admin Portal</span></a>
+    <a class="brand" href="AdminHome.html">br<span class="ai">AI</span>ght <span style="font-size:14px; font-weight:normal; color:var(--sub); margin-left:8px;">| Admin Portal</span></a>
     <div class="user-info">
       <span id="admin-welcome">Welcome, Admin</span>
       <button class="logout-btn" id="logout-btn">Log Out</button>
@@ -90,25 +107,38 @@ footer b { color:var(--navy); }
 
 <main>
   <div class="wrap">
-    <h1>User Management Dashboard</h1>
-    <p class="lede">Overview of all registered accounts and system statuses.</p>
+    <div class="layout">
+      <aside class="sidebar" aria-label="Admin navigation">
+        <div class="side-title">Dashboard</div>
+        <nav>
+          <a class="side-link" href="UserProfile.html">User Profile</a>
+          <a class="side-link soon" href="#" title="Coming soon">Active Sessions <span class="soon-tag">Soon</span></a>
+          <a class="side-link soon" href="#" title="Coming soon">Server Dashboard <span class="soon-tag">Soon</span></a>
+        </nav>
+      </aside>
 
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>First Name</th>
-            <th>Last Name</th>
-            <th>Last Login</th>
-            <th>User Type</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="users-table-body">
-          <tr><td colspan="6" style="text-align:center; color:var(--sub);">Loading users...</td></tr>
-        </tbody>
-      </table>
+      <section>
+        <h1>User Management Dashboard</h1>
+        <p class="lede">Overview of all registered accounts and system statuses.</p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Last Login</th>
+                <th>User Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <tr><td colspan="6" style="text-align:center; color:var(--sub);">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </div>
 </main>
@@ -124,16 +154,6 @@ footer b { color:var(--navy); }
   </div>
 </div>
 
-<div class="modal-overlay" id="timeout-modal" role="alertdialog" aria-modal="true" aria-labelledby="timeout-title" aria-describedby="timeout-message">
-  <div class="modal">
-    <h3 id="timeout-title">Session Timed Out</h3>
-    <p id="timeout-message">Your session has timed out. Please re-login.</p>
-    <div class="modal-actions">
-      <button class="modal-btn btn-confirm" id="timeout-relogin">Re-login</button>
-    </div>
-  </div>
-</div>
-
 <footer>
   <div class="wrap">
     <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
@@ -141,117 +161,25 @@ footer b { color:var(--navy); }
   </div>
 </footer>
 
+<script src="admin-session.js"></script>
 <script>
-const API_BASE = "https://api.braight.in";
-const IDLE_LIMIT_MS = 30 * 1000;      // log out after 30 seconds without activity
-const HEARTBEAT_MS  = 10 * 1000;      // tell the server we're still active (only if there was activity)
-
 let selectedUserForUpdate = null;
-let sessionEnded = false;
-let lastActivity = Date.now();
-let lastPing = Date.now();
-let idleTimer = null;
-let heartbeatTimer = null;
-let logoutPromise = Promise.resolve();
 
-const userSession = JSON.parse(sessionStorage.getItem('braight_user') || 'null');
-const sessionToken = userSession && userSession.sessionToken;
+const admin = AdminSession.init({
+  // Called when the session times out or is rejected by the server: wipe what's on screen.
+  onSessionEnd: () => {
+    selectedUserForUpdate = null;
+    document.getElementById('status-modal').style.display = 'none';
+    document.getElementById('users-table-body').innerHTML =
+      '<tr><td colspan="6" style="text-align:center; color:var(--sub);">Session ended.</td></tr>';
+  }
+});
 
-if (!userSession || (userSession.userType || '').toUpperCase() !== 'ADMIN' || !sessionToken) {
-  sessionStorage.removeItem('braight_user');
-  window.location.replace('Login.html');
-} else {
-  document.getElementById('admin-welcome').textContent = `Welcome, ${userSession.firstName || userSession.username}`;
-  startSession();
-}
-
-/* ---------- Session handling ---------- */
-
-function startSession() {
-  ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'wheel'].forEach(evt =>
-    window.addEventListener(evt, markActive, { passive: true })
-  );
-  // Timestamps (not a single setTimeout) so sleeping laptops / throttled background tabs still time out.
-  idleTimer = setInterval(checkIdle, 1000);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') checkIdle();
-  });
-  heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_MS);
+if (admin) {
+  document.getElementById('admin-welcome').textContent = `Welcome, ${admin.firstName || admin.username}`;
+  document.getElementById('logout-btn').addEventListener('click', () => AdminSession.logout());
   fetchUsers();
 }
-
-function markActive() {
-  if (!sessionEnded) lastActivity = Date.now();
-}
-
-function checkIdle() {
-  if (!sessionEnded && Date.now() - lastActivity >= IDLE_LIMIT_MS) endSession();
-}
-
-async function sendHeartbeat() {
-  if (sessionEnded || lastActivity <= lastPing) return;   // nothing happened since the last ping
-  lastPing = Date.now();
-  try {
-    await apiFetch('/api/admin/heartbeat', { method: 'POST' });
-  } catch (err) { /* network blip: the server-side timeout is the backstop */ }
-}
-
-function authHeaders(extra) {
-  return Object.assign({ 'Authorization': 'Bearer ' + sessionToken }, extra || {});
-}
-
-// Every admin API call goes through here; a 401 means the server no longer accepts this session.
-async function apiFetch(path, options) {
-  options = options || {};
-  const res = await fetch(API_BASE + path, Object.assign({}, options, {
-    headers: authHeaders(options.headers)
-  }));
-  if (res.status === 401) endSession();
-  return res;
-}
-
-function serverLogout() {
-  return fetch(API_BASE + '/api/admin/logout', {
-    method: 'POST',
-    headers: authHeaders(),
-    keepalive: true
-  }).catch(() => {});
-}
-
-function withTimeout(promise, ms) {
-  return Promise.race([promise, new Promise(resolve => setTimeout(resolve, ms))]);
-}
-
-// Idle timeout or server-side expiry: release the session, wipe the page, show the popup.
-function endSession() {
-  if (sessionEnded) return;
-  sessionEnded = true;
-  clearInterval(idleTimer);
-  clearInterval(heartbeatTimer);
-  logoutPromise = serverLogout();
-  sessionStorage.removeItem('braight_user');
-  selectedUserForUpdate = null;
-  document.getElementById('status-modal').style.display = 'none';
-  document.getElementById('users-table-body').innerHTML =
-    '<tr><td colspan="6" style="text-align:center; color:var(--sub);">Session ended.</td></tr>';
-  document.getElementById('timeout-modal').style.display = 'flex';
-  document.getElementById('timeout-relogin').focus();
-}
-
-document.getElementById('timeout-relogin').addEventListener('click', async () => {
-  await withTimeout(logoutPromise, 3000);
-  window.location.replace('Login.html');
-});
-
-document.getElementById('logout-btn').addEventListener('click', async () => {
-  if (sessionEnded) return;
-  sessionEnded = true;
-  clearInterval(idleTimer);
-  clearInterval(heartbeatTimer);
-  await withTimeout(serverLogout(), 3000);   // free the single admin session before leaving
-  sessionStorage.removeItem('braight_user');
-  window.location.replace('Login.html');
-});
 
 /* ---------- User table ---------- */
 
@@ -264,8 +192,8 @@ function capitalize(s) {
 async function fetchUsers() {
   const tbody = document.getElementById('users-table-body');
   try {
-    const res = await apiFetch('/api/admin/users');
-    if (sessionEnded) return;
+    const res = await AdminSession.apiFetch('/api/admin/users');
+    if (AdminSession.isEnded()) return;
     const data = await res.json();
     if (!res.ok) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#A23B3B;">Failed to load users.</td></tr>`;
@@ -314,7 +242,7 @@ async function fetchUsers() {
     });
 
   } catch (err) {
-    if (sessionEnded) return;
+    if (AdminSession.isEnded()) return;
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#A23B3B;">Could not connect to server.</td></tr>`;
   }
 }
@@ -347,12 +275,12 @@ document.getElementById('modal-confirm').addEventListener('click', async () => {
   const confirmBtn = document.getElementById('modal-confirm');
   confirmBtn.disabled = true;
   try {
-    const res = await apiFetch(`/api/admin/users/${encodeURIComponent(selectedUserForUpdate)}/status`, {
+    const res = await AdminSession.apiFetch(`/api/admin/users/${encodeURIComponent(selectedUserForUpdate)}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'active' })
     });
-    if (sessionEnded) return;
+    if (AdminSession.isEnded()) return;
     if (res.ok) {
       closeStatusModal();
       fetchUsers();
@@ -360,7 +288,7 @@ document.getElementById('modal-confirm').addEventListener('click', async () => {
       alert('Failed to update status.');
     }
   } catch (err) {
-    if (!sessionEnded) alert('Server connection error.');
+    if (!AdminSession.isEnded()) alert('Server connection error.');
   } finally {
     confirmBtn.disabled = false;
   }
