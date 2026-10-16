@@ -330,31 +330,57 @@ def admin_heartbeat():
     return jsonify({"status": "ok"}), 200
 
 
-@app.route("/api/admin/profile", methods=["GET"])
+@app.route("/api/admin/profiles", methods=["GET"])
 @require_admin
-def admin_get_profile():
-    """
-    Details of the logged-in user only. The username comes from the validated
-    session token (g.admin_username), never from the request, so one admin
-    cannot read another user's profile through this endpoint.
-    """
+def admin_list_profiles():
+    """All non-admin users, for the User Profile list page."""
     try:
         with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT username, first_name, last_name, user_type, status,
-                       address, city, last_login, created_at
+                SELECT first_name, last_name, username, user_type, last_login
+                FROM users
+                WHERE UPPER(TRIM(user_type)) IS DISTINCT FROM 'ADMIN'
+                ORDER BY id ASC
+                """
+            )
+            users = cur.fetchall()
+        for u in users:
+            if u["last_login"]:
+                u["last_login"] = u["last_login"].isoformat()
+        return jsonify({"users": users}), 200
+    except Exception:
+        logger.exception("admin_list_profiles failed")
+        return jsonify({"error": "Could not retrieve users."}), 500
+
+
+@app.route("/api/admin/profile", methods=["GET"])
+@require_admin
+def admin_get_profile():
+    """
+    Profile of ONE selected non-admin user (?username=...). Admin accounts are
+    never returned by this endpoint; they get the same 404 as an unknown user.
+    """
+    username = (request.args.get("username") or "").strip()
+    if not username:
+        return jsonify({"error": "Username is required."}), 400
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT username, first_name, last_name, status, last_login,
+                       address, city
                 FROM users
                 WHERE username = %s
+                  AND UPPER(TRIM(user_type)) IS DISTINCT FROM 'ADMIN'
                 """,
-                (g.admin_username,),
+                (username,),
             )
             profile = cur.fetchone()
         if profile is None:
             return jsonify({"error": "User not found."}), 404
-        for key in ("last_login", "created_at"):
-            if profile.get(key):
-                profile[key] = profile[key].isoformat()
+        if profile.get("last_login"):
+            profile["last_login"] = profile["last_login"].isoformat()
         return jsonify({"profile": profile}), 200
     except Exception:
         logger.exception("admin_get_profile failed")
