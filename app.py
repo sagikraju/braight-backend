@@ -330,6 +330,37 @@ def admin_heartbeat():
     return jsonify({"status": "ok"}), 200
 
 
+@app.route("/api/admin/profile", methods=["GET"])
+@require_admin
+def admin_get_profile():
+    """
+    Details of the logged-in user only. The username comes from the validated
+    session token (g.admin_username), never from the request, so one admin
+    cannot read another user's profile through this endpoint.
+    """
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT username, first_name, last_name, user_type, status,
+                       address, city, last_login, created_at
+                FROM users
+                WHERE username = %s
+                """,
+                (g.admin_username,),
+            )
+            profile = cur.fetchone()
+        if profile is None:
+            return jsonify({"error": "User not found."}), 404
+        for key in ("last_login", "created_at"):
+            if profile.get(key):
+                profile[key] = profile[key].isoformat()
+        return jsonify({"profile": profile}), 200
+    except Exception:
+        logger.exception("admin_get_profile failed")
+        return jsonify({"error": "Could not retrieve profile."}), 500
+
+
 @app.route("/api/admin/logout", methods=["POST"])
 def admin_logout():
     """Release the admin session immediately (no expiry check needed)."""
