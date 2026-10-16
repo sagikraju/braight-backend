@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>User Profile — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D; --green:#2E7D32; --row-alt:#F4F7FB;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+    --green:#4CAF50; --row-alt:#182333;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  --green:#4CAF50; --row-alt:#182333;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+}
+a { color:inherit; }
+.wrap { max-width:1200px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+.user-info { display:flex; align-items:center; gap:16px; font-size:14px; color:var(--sub); }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; }
+.logout-btn:hover { background:var(--border); }
+
+main { padding:40px 0 60px; }
+
+/* Left dashboard */
+.layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:32px; align-items:start; }
+.sidebar { position:sticky; top:96px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 12px; }
+.side-title { font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); padding:0 12px 10px; }
+.sidebar nav { display:flex; flex-direction:column; gap:4px; }
+.side-link { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-radius:8px; border-left:3px solid transparent; text-decoration:none; color:var(--text); font-size:14.5px; font-weight:500; }
+.side-link:hover { background:var(--row-alt); }
+.side-link.on { color:var(--navy); font-weight:600; border-left-color:var(--amber); background:var(--row-alt); }
+.side-link.soon { color:var(--sub); cursor:default; }
+.soon-tag { font-size:11px; font-weight:600; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 8px; }
+
+.back-link { display:inline-block; margin-bottom:14px; font-size:14px; color:var(--sub); text-decoration:none; border-bottom:1px solid var(--border); }
+.back-link:hover { color:var(--navy); border-bottom-color:var(--amber); }
+
+h1 { font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--navy); margin:0 0 8px; }
+.lede { color:var(--sub); margin:0 0 24px; font-size:15px; }
+
+.profile-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.profile-head { display:flex; align-items:center; gap:18px; padding:24px 28px; border-bottom:1px solid var(--border); }
+.avatar { width:56px; height:56px; border-radius:50%; background:var(--navy); color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:20px; flex-shrink:0; }
+:root[data-theme="dark"] .avatar { color:#101823; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .avatar { color:#101823; }
+}
+.profile-name { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; color:var(--navy); line-height:1.2; }
+.profile-sub { color:var(--sub); font-size:14px; margin-top:2px; }
+
+.details { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:0; margin:0; }
+.detail { padding:16px 28px; border-bottom:1px solid var(--border); }
+.detail:nth-last-child(-n+2) { border-bottom:none; }
+.detail dt { font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); margin-bottom:4px; }
+.detail dd { margin:0; font-size:15.5px; color:var(--text); overflow-wrap:anywhere; }
+.detail.full { grid-column:1 / -1; }
+.detail.full:nth-last-child(-n+2) { border-bottom:1px solid var(--border); }
+.detail:last-child { border-bottom:none; }
+.muted { color:var(--sub); }
+.st-active { color:var(--green); font-weight:600; }
+.st-other { color:var(--amber); font-weight:600; }
+
+.state-msg { padding:36px 28px; text-align:center; color:var(--sub); }
+.state-msg.error { color:#A23B3B; }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; margin-top:60px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+
+@media (max-width:800px) {
+  .layout { grid-template-columns:1fr; gap:24px; }
+  .sidebar { position:static; }
+  .sidebar nav { flex-direction:row; flex-wrap:wrap; }
+  .details { grid-template-columns:1fr; }
+  .detail { padding:14px 20px; border-bottom:1px solid var(--border) !important; }
+  .detail:last-child { border-bottom:none !important; }
+  .profile-head { padding:20px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="AdminHome.html">br<span class="ai">AI</span>ght <span style="font-size:14px; font-weight:normal; color:var(--sub); margin-left:8px;">| Admin Portal</span></a>
+    <div class="user-info">
+      <span id="admin-welcome">Welcome, Admin</span>
+      <button class="logout-btn" id="logout-btn">Log Out</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="sidebar" aria-label="Admin navigation">
+        <div class="side-title">Dashboard</div>
+        <nav>
+          <a class="side-link on" href="UserProfile.html" aria-current="page">User Profile</a>
+          <a class="side-link soon" href="#" title="Coming soon">Active Sessions <span class="soon-tag">Soon</span></a>
+          <a class="side-link soon" href="#" title="Coming soon">Server Dashboard <span class="soon-tag">Soon</span></a>
+        </nav>
+      </aside>
+
+      <section>
+        <a class="back-link" href="AdminHome.html">&larr; Back to User Management</a>
+        <h1>User Profile</h1>
+        <p class="lede">Your account details.</p>
+
+        <div class="profile-card" id="profile-card">
+          <div class="state-msg" id="profile-state">Loading profile...</div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script src="admin-session.js"></script>
+<script>
+const card = document.getElementById('profile-card');
+
+const admin = AdminSession.init({
+  // Called when the session times out or is rejected by the server: wipe what's on screen.
+  onSessionEnd: () => {
+    card.innerHTML = '<div class="state-msg">Session ended.</div>';
+  }
+});
+
+if (admin) {
+  document.getElementById('admin-welcome').textContent = `Welcome, ${admin.firstName || admin.username}`;
+  document.getElementById('logout-btn').addEventListener('click', () => AdminSession.logout());
+  loadProfile();
+}
+
+async function loadProfile() {
+  try {
+    // The server decides whose profile this is from the session token, so only the logged-in user's data comes back.
+    const res = await AdminSession.apiFetch('/api/admin/profile');
+    if (AdminSession.isEnded()) return;
+    const data = await res.json();
+    if (!res.ok || !data.profile) {
+      card.innerHTML = '<div class="state-msg error">Could not load your profile.</div>';
+      return;
+    }
+    renderProfile(data.profile);
+  } catch (err) {
+    if (AdminSession.isEnded()) return;
+    card.innerHTML = '<div class="state-msg error">Could not connect to server.</div>';
+  }
+}
+
+function val(v) {
+  const s = (v == null ? '' : String(v)).trim();
+  return s ? escapeHtml(s) : '<span class="muted">&mdash;</span>';
+}
+
+function fmtDate(v) {
+  if (!v) return '<span class="muted">&mdash;</span>';
+  const d = new Date(v);
+  return isNaN(d) ? val(v) : escapeHtml(d.toLocaleString());
+}
+
+function renderProfile(p) {
+  const first = (p.first_name || '').trim();
+  const last = (p.last_name || '').trim();
+  const fullName = [first, last].filter(Boolean).join(' ') || p.username;
+  const initials = ((first[0] || '') + (last[0] || '')).toUpperCase() || (p.username || '?')[0].toUpperCase();
+
+  const status = (p.status || '').trim();
+  const statusHtml = status
+    ? `<span class="${status.toLowerCase() === 'active' ? 'st-active' : 'st-other'}">${escapeHtml(status.charAt(0).toUpperCase() + status.slice(1).toLowerCase())}</span>`
+    : '<span class="muted">&mdash;</span>';
+
+  card.innerHTML = `
+    <div class="profile-head">
+      <div class="avatar" aria-hidden="true">${escapeHtml(initials)}</div>
+      <div>
+        <div class="profile-name">${escapeHtml(fullName)}</div>
+        <div class="profile-sub">${escapeHtml(p.user_type || '')}</div>
+      </div>
+    </div>
+    <dl class="details">
+      <div class="detail"><dt>Username</dt><dd>${val(p.username)}</dd></div>
+      <div class="detail"><dt>Status</dt><dd>${statusHtml}</dd></div>
+      <div class="detail"><dt>First Name</dt><dd>${val(p.first_name)}</dd></div>
+      <div class="detail"><dt>Last Name</dt><dd>${val(p.last_name)}</dd></div>
+      <div class="detail"><dt>User Type</dt><dd>${val(p.user_type)}</dd></div>
+      <div class="detail"><dt>City</dt><dd>${val(p.city)}</dd></div>
+      <div class="detail full"><dt>Address</dt><dd>${val(p.address)}</dd></div>
+      <div class="detail"><dt>Last Login</dt><dd>${fmtDate(p.last_login)}</dd></div>
+      <div class="detail"><dt>Member Since</dt><dd>${fmtDate(p.created_at)}</dd></div>
+    </dl>
+  `;
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+</script>
+</body>
+</html>
