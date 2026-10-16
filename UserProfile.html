@@ -51,36 +51,22 @@ main { padding:40px 0 60px; }
 .side-link.soon { color:var(--sub); cursor:default; }
 .soon-tag { font-size:11px; font-weight:600; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 8px; }
 
-.back-link { display:inline-block; margin-bottom:14px; font-size:14px; color:var(--sub); text-decoration:none; border-bottom:1px solid var(--border); }
-.back-link:hover { color:var(--navy); border-bottom-color:var(--amber); }
-
 h1 { font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--navy); margin:0 0 8px; }
 .lede { color:var(--sub); margin:0 0 24px; font-size:15px; }
 
-.profile-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-.profile-head { display:flex; align-items:center; gap:18px; padding:24px 28px; border-bottom:1px solid var(--border); }
-.avatar { width:56px; height:56px; border-radius:50%; background:var(--navy); color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:20px; flex-shrink:0; }
-:root[data-theme="dark"] .avatar { color:#101823; }
+.table-container { width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+table { width:100%; border-collapse:collapse; text-align:left; font-size:14.5px; }
+th, td { padding:14px 18px; border-bottom:1px solid var(--border); }
+th { background:var(--navy); color:#FFFFFF; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:0.03em; }
+:root[data-theme="dark"] th { color:#101823; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .avatar { color:#101823; }
+  :root:not([data-theme="light"]) th { color:#101823; }
 }
-.profile-name { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; color:var(--navy); line-height:1.2; }
-.profile-sub { color:var(--sub); font-size:14px; margin-top:2px; }
+tr:nth-child(even) td { background-color: var(--row-alt); }
+tr:last-child td { border-bottom:none; }
 
-.details { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:0; margin:0; }
-.detail { padding:16px 28px; border-bottom:1px solid var(--border); }
-.detail:nth-last-child(-n+2) { border-bottom:none; }
-.detail dt { font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); margin-bottom:4px; }
-.detail dd { margin:0; font-size:15.5px; color:var(--text); overflow-wrap:anywhere; }
-.detail.full { grid-column:1 / -1; }
-.detail.full:nth-last-child(-n+2) { border-bottom:1px solid var(--border); }
-.detail:last-child { border-bottom:none; }
-.muted { color:var(--sub); }
-.st-active { color:var(--green); font-weight:600; }
-.st-other { color:var(--amber); font-weight:600; }
-
-.state-msg { padding:36px 28px; text-align:center; color:var(--sub); }
-.state-msg.error { color:#A23B3B; }
+.user-link { color:var(--navy); font-weight:600; text-decoration:none; border-bottom:2px solid var(--amber); }
+.user-link:hover { opacity:0.8; }
 
 footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; margin-top:60px; }
 footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
@@ -90,10 +76,6 @@ footer b { color:var(--navy); }
   .layout { grid-template-columns:1fr; gap:24px; }
   .sidebar { position:static; }
   .sidebar nav { flex-direction:row; flex-wrap:wrap; }
-  .details { grid-template-columns:1fr; }
-  .detail { padding:14px 20px; border-bottom:1px solid var(--border) !important; }
-  .detail:last-child { border-bottom:none !important; }
-  .profile-head { padding:20px; }
 }
 </style>
 </head>
@@ -121,12 +103,24 @@ footer b { color:var(--navy); }
       </aside>
 
       <section>
-        <a class="back-link" href="AdminHome.html">&larr; Back to User Management</a>
         <h1>User Profile</h1>
-        <p class="lede">Your account details.</p>
+        <p class="lede">All registered users (excluding administrators). Select a username to view that user's profile.</p>
 
-        <div class="profile-card" id="profile-card">
-          <div class="state-msg" id="profile-state">Loading profile...</div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Username</th>
+                <th>User Type</th>
+                <th>Last Login</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <tr><td colspan="5" style="text-align:center; color:var(--sub);">Loading users...</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </div>
@@ -142,80 +136,53 @@ footer b { color:var(--navy); }
 
 <script src="admin-session.js"></script>
 <script>
-const card = document.getElementById('profile-card');
+const tbody = document.getElementById('users-table-body');
 
 const admin = AdminSession.init({
   // Called when the session times out or is rejected by the server: wipe what's on screen.
   onSessionEnd: () => {
-    card.innerHTML = '<div class="state-msg">Session ended.</div>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub);">Session ended.</td></tr>';
   }
 });
 
 if (admin) {
   document.getElementById('admin-welcome').textContent = `Welcome, ${admin.firstName || admin.username}`;
   document.getElementById('logout-btn').addEventListener('click', () => AdminSession.logout());
-  loadProfile();
+  loadUsers();
 }
 
-async function loadProfile() {
+async function loadUsers() {
   try {
-    // The server decides whose profile this is from the session token, so only the logged-in user's data comes back.
-    const res = await AdminSession.apiFetch('/api/admin/profile');
+    const res = await AdminSession.apiFetch('/api/admin/profiles');
     if (AdminSession.isEnded()) return;
     const data = await res.json();
-    if (!res.ok || !data.profile) {
-      card.innerHTML = '<div class="state-msg error">Could not load your profile.</div>';
+    if (!res.ok) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#A23B3B;">Failed to load users.</td></tr>';
       return;
     }
-    renderProfile(data.profile);
+    if (!data.users || data.users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub);">No users found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    data.users.forEach(u => {
+      const tr = document.createElement('tr');
+      // The profile opens on its own page (UserDetail.html) for just the selected user.
+      const href = 'UserDetail.html?username=' + encodeURIComponent(u.username);
+      tr.innerHTML = `
+        <td>${escapeHtml(u.first_name || '')}</td>
+        <td>${escapeHtml(u.last_name || '')}</td>
+        <td><a class="user-link" href="${escapeHtml(href)}">${escapeHtml(u.username)}</a></td>
+        <td>${escapeHtml(u.user_type || '')}</td>
+        <td>${u.last_login ? escapeHtml(new Date(u.last_login).toLocaleString()) : 'Never'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
   } catch (err) {
     if (AdminSession.isEnded()) return;
-    card.innerHTML = '<div class="state-msg error">Could not connect to server.</div>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#A23B3B;">Could not connect to server.</td></tr>';
   }
-}
-
-function val(v) {
-  const s = (v == null ? '' : String(v)).trim();
-  return s ? escapeHtml(s) : '<span class="muted">&mdash;</span>';
-}
-
-function fmtDate(v) {
-  if (!v) return '<span class="muted">&mdash;</span>';
-  const d = new Date(v);
-  return isNaN(d) ? val(v) : escapeHtml(d.toLocaleString());
-}
-
-function renderProfile(p) {
-  const first = (p.first_name || '').trim();
-  const last = (p.last_name || '').trim();
-  const fullName = [first, last].filter(Boolean).join(' ') || p.username;
-  const initials = ((first[0] || '') + (last[0] || '')).toUpperCase() || (p.username || '?')[0].toUpperCase();
-
-  const status = (p.status || '').trim();
-  const statusHtml = status
-    ? `<span class="${status.toLowerCase() === 'active' ? 'st-active' : 'st-other'}">${escapeHtml(status.charAt(0).toUpperCase() + status.slice(1).toLowerCase())}</span>`
-    : '<span class="muted">&mdash;</span>';
-
-  card.innerHTML = `
-    <div class="profile-head">
-      <div class="avatar" aria-hidden="true">${escapeHtml(initials)}</div>
-      <div>
-        <div class="profile-name">${escapeHtml(fullName)}</div>
-        <div class="profile-sub">${escapeHtml(p.user_type || '')}</div>
-      </div>
-    </div>
-    <dl class="details">
-      <div class="detail"><dt>Username</dt><dd>${val(p.username)}</dd></div>
-      <div class="detail"><dt>Status</dt><dd>${statusHtml}</dd></div>
-      <div class="detail"><dt>First Name</dt><dd>${val(p.first_name)}</dd></div>
-      <div class="detail"><dt>Last Name</dt><dd>${val(p.last_name)}</dd></div>
-      <div class="detail"><dt>User Type</dt><dd>${val(p.user_type)}</dd></div>
-      <div class="detail"><dt>City</dt><dd>${val(p.city)}</dd></div>
-      <div class="detail full"><dt>Address</dt><dd>${val(p.address)}</dd></div>
-      <div class="detail"><dt>Last Login</dt><dd>${fmtDate(p.last_login)}</dd></div>
-      <div class="detail"><dt>Member Since</dt><dd>${fmtDate(p.created_at)}</dd></div>
-    </dl>
-  `;
 }
 
 function escapeHtml(str) {
