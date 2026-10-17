@@ -1,5 +1,9 @@
 /*
- * brAIght admin session helper -- shared by every admin page.
+ * brAIght session helper -- shared by the admin pages and the user Workspace page.
+ * (File name kept so the existing admin pages keep working.)
+ *
+ * Admin pages:      AdminSession.init({ onSessionEnd })
+ * Workspace page:   AppSession.init({ requireAdmin: false, onSessionEnd })
  *
  * Usage (at the end of <body>):
  *   <script src="admin-session.js"></script>
@@ -46,7 +50,7 @@
   }
 
   function serverLogout() {
-    return fetch(API_BASE + '/api/admin/logout', {
+    return fetch(API_BASE + '/api/session/logout', {
       method: 'POST',
       headers: authHeaders(),
       keepalive: true
@@ -100,7 +104,7 @@
   function sendHeartbeat() {
     if (ended || lastActivity <= lastPing) return;   // nothing happened since the last ping
     lastPing = Date.now();
-    apiFetch('/api/admin/heartbeat', { method: 'POST' }).catch(function () {
+    apiFetch('/api/session/heartbeat', { method: 'POST' }).catch(function () {
       /* network blip: the server-side timeout is the backstop */
     });
   }
@@ -147,15 +151,22 @@
     });
   }
 
-  // Returns the logged-in admin's user object, or null (after redirecting to Login.html).
+  // Returns the logged-in user's object, or null (after redirecting).
+  // options.requireAdmin (default true) is for admin pages; pass false for the user Workspace page.
   function init(options) {
     options = options || {};
     onSessionEnd = options.onSessionEnd || null;
+    var requireAdmin = options.requireAdmin !== false;
 
     var s = readSession();
-    if (!s || String(s.userType || '').toUpperCase() !== 'ADMIN' || !s.sessionToken) {
+    if (!s || !s.sessionToken) {
       sessionStorage.removeItem(STORAGE_KEY);
       window.location.replace('Login.html');
+      return null;
+    }
+    if (requireAdmin && String(s.userType || '').toUpperCase() !== 'ADMIN') {
+      // Logged in, but not an admin: send them to their own page without ending their session.
+      window.location.replace('Workspace.html');
       return null;
     }
     user = s;
@@ -178,14 +189,18 @@
       if (document.visibilityState === 'visible') checkIdle();
     });
     heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_MS);
+    // Validate (and refresh) the session right away, so an expired one is caught on page load.
+    apiFetch('/api/session/heartbeat', { method: 'POST' }).catch(function () {});
 
     return user;
   }
 
-  window.AdminSession = {
+  var api = {
     init: init,
     apiFetch: apiFetch,
     logout: logout,
     isEnded: function () { return ended; }
   };
+  window.AdminSession = api;   // used by the admin pages
+  window.AppSession = api;     // same object; used by the Workspace page
 })();
