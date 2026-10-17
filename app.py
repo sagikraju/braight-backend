@@ -15,6 +15,9 @@ Required one-time database migration (run BEFORE deploying this file):
   CREATE UNIQUE INDEX IF NOT EXISTS users_admin_session_hash_idx
     ON users (admin_session_hash) WHERE admin_session_hash IS NOT NULL;
 
+Note: the admin_session_* columns now hold the single live session of EVERY
+user (admins and regular users), despite the column names.
+
 Run locally: python app.py
 Render start command: gunicorn app:app
 """
@@ -56,10 +59,10 @@ ALLOWED_STATUS_VALUES = {"active", "inactive", "locked"}
 MAX_FAILED_ATTEMPTS = 3
 INACTIVE_AFTER_DAYS = 60
 
-# Admin sessions are server-side and expire when idle. The admin page logs the
-# user out after 30 s without any activity; the server allows a little longer
-# (heartbeat interval + network latency) so the two never disagree.
-ADMIN_IDLE_TIMEOUT_SECONDS = 45
+# Sessions (admins and regular users) are server-side and expire when idle. The
+# pages log the user out after 30 s without any activity; the server allows a
+# little longer (heartbeat interval + network latency) so the two never disagree.
+SESSION_IDLE_TIMEOUT_SECONDS = 45
 
 _DUMMY_HASH = generate_password_hash("not-a-real-password")
 
@@ -90,7 +93,7 @@ def get_connection():
 
 
 # --------------------------------------------------------------------------
-# Admin session helpers
+# Session helpers
 # --------------------------------------------------------------------------
 
 def _hash_token(token):
@@ -106,46 +109,58 @@ def _bearer_token():
     return token.strip()
 
 
-def require_admin(view):
+def _session_required(admin_only):
     """
-    Allow the request only if it carries a valid, non-expired admin session
-    token. Validation and the 'last active' refresh happen in one atomic UPDATE,
-    so every authenticated admin call also keeps the session alive.
+    Build a decorator that allows the request only if it carries a valid,
+    non-expired session token. Validation and the 'last active' refresh happen
+    in one atomic UPDATE, so every authenticated call also keeps the session
+    alive. With admin_only=True the session must also belong to an ADMIN
+    account; any other user gets 403.
     """
-    @wraps(view)
-    def wrapper(*args, **kwargs):
-        token = _bearer_token()
-        if not token:
-            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
-        try:
-            with get_connection() as conn, conn.cursor() as cur:
-                cur.execute(
-                    """
-                    UPDATE users
-                    SET admin_session_last_active = NOW()
-                    WHERE admin_session_hash = %s
-                      AND UPPER(TRIM(user_type)) = 'ADMIN'
-                      AND admin_session_last_active
-                          > NOW() - (%s::int * INTERVAL '1 second')
-                    RETURNING username
-                    """,
-                    (_hash_token(token), ADMIN_IDLE_TIMEOUT_SECONDS),
-                )
-                row = cur.fetchone()
-        except Exception:
-            logger.exception("admin session check failed")
-            return jsonify({"error": "Could not verify session."}), 500
+    def decorator(view):
+        @wraps(view)
+        def wrapper(*args, **kwargs):
+            token = _bearer_token()
+            if not token:
+                return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+            try:
+                with get_connection() as conn, conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE users
+                        SET admin_session_last_active = NOW()
+                        WHERE admin_session_hash = %s
+                          AND admin_session_last_active
+                              > NOW() - (%s::int * INTERVAL '1 second')
+                        RETURNING username, user_type
+                        """,
+                        (_hash_token(token), SESSION_IDLE_TIMEOUT_SECONDS),
+                    )
+                    row = cur.fetchone()
+            except Exception:
+                logger.exception("session check failed")
+                return jsonify({"error": "Could not verify session."}), 500
 
-        if row is None:
-            return jsonify({
-                "error": "Your session has timed out. Please re-login.",
-                "code": "SESSION_EXPIRED",
-            }), 401
+            if row is None:
+                return jsonify({
+                    "error": "Your session has timed out. Please re-login.",
+                    "code": "SESSION_EXPIRED",
+                }), 401
 
-        g.admin_username = row[0]
-        return view(*args, **kwargs)
+            g.session_username = row[0]
+            if admin_only and (row[1] or "").strip().upper() != "ADMIN":
+                return jsonify({
+                    "error": "Administrator access required.",
+                    "code": "FORBIDDEN",
+                }), 403
+            return view(*args, **kwargs)
 
-    return wrapper
+        return wrapper
+    return decorator
+
+
+require_session = _session_required(False)   # any logged-in user
+require_admin = _session_required(True)      # ADMIN accounts only
 
 
 @app.route("/api/health", methods=["GET"])
@@ -228,7 +243,7 @@ def login():
                 WHERE username = %s
                 FOR UPDATE
                 """,
-                (ADMIN_IDLE_TIMEOUT_SECONDS, username),
+                (SESSION_IDLE_TIMEOUT_SECONDS, username),
             )
             row = cur.fetchone()
 
@@ -275,37 +290,26 @@ def login():
                 remaining = MAX_FAILED_ATTEMPTS - attempts
                 return jsonify({"error": f"Invalid username or password. {remaining} attempt(s) remaining before the account is locked."}), 401
 
-            session_token = None
-            if is_admin:
-                # Password is correct. Only one live session per admin: refuse a
-                # second login (without touching the existing session) while the
-                # first one is still active. The row is locked FOR UPDATE above,
-                # so two simultaneous logins cannot both get through.
-                if row["has_active_session"]:
-                    return jsonify({
-                        "error": "This admin account already has an active session. "
-                                 "Please log out from the other session, or wait for it to time out, and try again."
-                    }), 409
+            # Password is correct. Only one live session per user: refuse a
+            # second login (without touching the existing session) while the
+            # first one is still active. The row is locked FOR UPDATE above,
+            # so two simultaneous logins cannot both get through.
+            if row["has_active_session"]:
+                return jsonify({
+                    "error": "This account already has an active session. "
+                             "Please log out from the other session, or wait for it to time out, and try again."
+                }), 409
 
-                session_token = secrets.token_urlsafe(32)
-                cur.execute(
-                    """
-                    UPDATE users
-                    SET last_login = NOW(), failed_login_attempts = 0,
-                        admin_session_hash = %s, admin_session_last_active = NOW()
-                    WHERE id = %s
-                    """,
-                    (_hash_token(session_token), row["id"]),
-                )
-            else:
-                cur.execute(
-                    """
-                    UPDATE users
-                    SET last_login = NOW(), failed_login_attempts = 0
-                    WHERE id = %s
-                    """,
-                    (row["id"],),
-                )
+            session_token = secrets.token_urlsafe(32)
+            cur.execute(
+                """
+                UPDATE users
+                SET last_login = NOW(), failed_login_attempts = 0,
+                    admin_session_hash = %s, admin_session_last_active = NOW()
+                WHERE id = %s
+                """,
+                (_hash_token(session_token), row["id"]),
+            )
 
             user = {
                 "id": row["id"],
@@ -314,19 +318,19 @@ def login():
                 "username": row["username"],
                 "userType": row["user_type"],
             }
-            if session_token:
-                # Stored by Login.html together with the user object.
-                user["sessionToken"] = session_token
+            # Stored by Login.html together with the user object.
+            user["sessionToken"] = session_token
         return jsonify({"user": user}), 200
     except Exception:
         logger.exception("login failed")
         return jsonify({"error": "Login failed."}), 500
 
 
-@app.route("/api/admin/heartbeat", methods=["POST"])
-@require_admin
-def admin_heartbeat():
-    # require_admin has already refreshed the session's last-active time.
+@app.route("/api/session/heartbeat", methods=["POST"])
+@app.route("/api/admin/heartbeat", methods=["POST"])  # old path, kept for pages cached before the update
+@require_session
+def session_heartbeat():
+    # require_session has already refreshed the session's last-active time.
     return jsonify({"status": "ok"}), 200
 
 
@@ -387,9 +391,10 @@ def admin_get_profile():
         return jsonify({"error": "Could not retrieve profile."}), 500
 
 
-@app.route("/api/admin/logout", methods=["POST"])
-def admin_logout():
-    """Release the admin session immediately (no expiry check needed)."""
+@app.route("/api/session/logout", methods=["POST"])
+@app.route("/api/admin/logout", methods=["POST"])  # old path, kept for pages cached before the update
+def session_logout():
+    """Release the caller's session immediately (no expiry check needed)."""
     token = _bearer_token()
     if token:
         try:
@@ -403,7 +408,7 @@ def admin_logout():
                     (_hash_token(token),),
                 )
         except Exception:
-            logger.exception("admin_logout failed")
+            logger.exception("session_logout failed")
             return jsonify({"error": "Could not log out."}), 500
     return jsonify({"message": "Logged out."}), 200
 
