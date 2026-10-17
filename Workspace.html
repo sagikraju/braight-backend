@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workspace — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; }
+nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+nav a.on { color:var(--navy); border-bottom-color:var(--amber); }
+nav { align-items:center; }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; font-size:14px; }
+.logout-btn:hover { background:var(--border); }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(32px,5.2vw,50px); line-height:1.1; }
+.lede { font-size:clamp(16px,2vw,19px); color:var(--sub); max-width:60ch; margin:16px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+.hero { padding:90px 0; text-align:center; min-height:46vh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+</style>
+
+<style id="dynamic-active-tab">
+nav a.active, .nav a.active, header a.active {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 6px !important;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <nav>
+      <a href="index.html#/schools">Schools &amp; Students</a>
+      <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
+      <a href="SDG.html">SDG Goals</a>
+      <a href="sdg-dashboard.html">SDG Dashboard</a><a href="insights.html">Data Insights</a>
+      <button type="button" class="logout-btn" id="logout-btn">Log Out</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="hero">
+      <div class="kicker" id="workspace-kicker">Your Workspace</div>
+      <h1>Coming soon</h1>
+      <p class="lede" id="workspace-lede">We're building your workspace &mdash; project boards, cohort materials, and progress tracking will appear here.</p>
+    </div>
+  </div>
+</main>
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script src="admin-session.js"></script>
+<script>
+(function(){
+  const user = AppSession.init({
+    requireAdmin: false,
+    // Called when the session times out or is rejected by the server: wipe what's on screen.
+    onSessionEnd: function(){
+      document.querySelector('.hero').innerHTML = '<p class="lede">Session ended.</p>';
+    }
+  });
+  if (!user) return;   // not logged in: already redirected to Login.html
+
+  document.getElementById('workspace-kicker').textContent = (user.userType || '') + ' Workspace';
+  document.getElementById('workspace-lede').textContent =
+    'Welcome, ' + (user.firstName || user.username) + '. We\u2019re building your workspace \u2014 project boards, ' +
+    'cohort materials, and progress tracking will appear here.';
+  document.getElementById('logout-btn').addEventListener('click', function(){ AppSession.logout(); });
+})();
+</script>
+<script>
+(function(){
+  const path=(location.pathname.split('/').pop()||'index.html').toLowerCase();
+  document.querySelectorAll('nav a, .nav a, header a').forEach(a=>{
+    const href=(a.getAttribute('href')||'').split('#')[0].split('?')[0].toLowerCase();
+    if(!href || href.startsWith('http')) return;
+    const target=href.split('/').pop()||'index.html';
+    const isHome=(path==='index.html'||path==='')&&(target==='index.html');
+    const isMatch=target===path || (path==='sdg.html'&&target==='sdg.html');
+    a.classList.toggle('active',isHome||isMatch);
+    a.setAttribute('aria-current',(isHome||isMatch)?'page':'false');
+  });
+})();
+</script>
+</body>
+</html>
