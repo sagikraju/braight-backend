@@ -57,7 +57,6 @@ CORS(
 ALLOWED_SIGNUP_TYPES = {"Student", "Jobseeker"}
 ALLOWED_STATUS_VALUES = {"active", "inactive", "locked"}
 MAX_FAILED_ATTEMPTS = 3
-INACTIVE_AFTER_DAYS = 60
 
 # Sessions (admins and regular users) are server-side and expire when idle. The
 # pages log the user out after 30 s without any activity; the server allows a
@@ -255,6 +254,8 @@ def login():
             user_type = (row["user_type"] or "").strip()
             is_admin = user_type.upper() == "ADMIN"
 
+            # Login only looks at the status column. Users are set to 'inactive' (after 60 days
+            # without a login) by the scheduled database job, not here.
             if not is_admin:
                 if status == "locked":
                     return jsonify({"error": "Your account is locked after three unsuccessful login attempts. Please contact the administrator."}), 403
@@ -262,18 +263,6 @@ def login():
                     return jsonify({"error": "Your account is inactive because there has been no activity for 60 days. Please contact the administrator."}), 403
                 if status != "active":
                     return jsonify({"error": "Your account is not active. Please contact the administrator."}), 403
-
-                cur.execute(
-                    """
-                    SELECT COALESCE(%s::timestamptz, %s::timestamptz)
-                           < NOW() - (%s * INTERVAL '1 day') AS is_inactive
-                    """,
-                    (row["last_login"], row["created_at"], INACTIVE_AFTER_DAYS),
-                )
-                is_inactive = cur.fetchone()["is_inactive"]
-                if is_inactive:
-                    cur.execute("UPDATE users SET status = 'inactive' WHERE id = %s", (row["id"],))
-                    return jsonify({"error": "Your account is inactive because there has been no activity for 60 days. Please contact the administrator."}), 403
 
             if not check_password_hash(row["password_hash"], password):
                 attempts = int(row["failed_login_attempts"] or 0) + 1
