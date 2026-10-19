@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Student Workspace — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; align-items:center; }
+nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+nav a:hover { color:var(--navy); }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; font-size:14px; }
+.logout-btn:hover { background:var(--border); }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(30px,4.8vw,44px); line-height:1.12; }
+h2 { font-size:clamp(22px,3vw,28px); line-height:1.2; }
+h3 { font-size:17px; line-height:1.3; }
+.lede { font-size:clamp(16px,2vw,18px); color:var(--sub); max-width:64ch; margin:14px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+
+main { min-height:60vh; }
+.hero { padding:56px 0 36px; }
+.block { padding:34px 0; border-top:1px solid var(--border); }
+.block-head { margin-bottom:20px; }
+.block-head p { color:var(--sub); margin:6px 0 0; max-width:70ch; }
+
+.steps, .grid { list-style:none; margin:0; padding:0; display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
+.card { display:flex; flex-direction:column; gap:6px; height:100%; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 18px 16px; text-decoration:none; color:inherit; }
+a.card:hover { border-color:var(--amber); }
+a.card:focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
+.card p { margin:0; color:var(--sub); font-size:14.5px; flex:1; }
+.card.soon { background:transparent; border-style:dashed; }
+.tag { align-self:flex-start; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 9px; }
+.num { align-self:flex-start; width:30px; height:30px; border-radius:50%; background:var(--navy); color:var(--bg); display:inline-flex; align-items:center; justify-content:center; font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:15px; }
+.status { font-size:13px; font-weight:600; color:var(--label); margin-top:8px; }
+.status.link { color:var(--navy); border-bottom:2px solid var(--amber); align-self:flex-start; }
+
+.progress-card, .help-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
+.bar { height:8px; background:var(--border); border-radius:999px; overflow:hidden; margin:12px 0 6px; }
+.bar > span { display:block; height:100%; width:0; background:var(--moss); transition:width .25s ease; }
+.progress-label { font-size:14px; color:var(--sub); margin:0 0 12px; }
+.check { display:flex; gap:10px; align-items:flex-start; padding:7px 0; cursor:pointer; font-size:15.5px; }
+.check input { margin-top:5px; width:16px; height:16px; accent-color:var(--moss); flex-shrink:0; }
+.note { font-size:13px; color:var(--sub); margin:12px 0 0; }
+.help-card p { margin:0; color:var(--sub); }
+.help-card a { color:var(--navy); font-weight:600; border-bottom:2px solid var(--amber); text-decoration:none; }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; margin-top:20px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+
+@media (max-width:560px) {
+  .hero { padding:36px 0 24px; }
+  .steps, .grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <nav>
+      <a href="index.html#/schools">Schools &amp; Students</a>
+      <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
+      <a href="SDG.html">SDG Goals</a>
+      <a href="sdg-dashboard.html">SDG Dashboard</a>
+      <a href="insights.html">Data Insights</a>
+      <button type="button" class="logout-btn" id="logout-btn">Log Out</button>
+    </nav>
+  </div>
+</header>
+
+<main id="app">
+  <div class="wrap"><p class="lede">Loading your workspace…</p></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script src="admin-session.js?v=2"></script>
+<script>
+/* ------------------------------------------------------------------
+   Page content: edit the text, links and items here.
+   - An item with a "url" becomes a link (http(s) links open in a new tab).
+   - An item without a "url" shows as "Coming soon".
+------------------------------------------------------------------- */
+const PAGE = {
+  "slug": "student",
+  "label": "Student",
+  "intro": "Explore how AI can help solve real-world problems, from clean water to climate action. Follow the learning path, try the tools, and build your own AI-for-good project.",
+  "path": {
+    "heading": "Your learning path",
+    "intro": "Work through these steps in order. Each one builds on the last.",
+    "steps": [
+      {
+        "title": "What is AI?",
+        "desc": "How computers learn from examples, and where you already meet AI every day."
+      },
+      {
+        "title": "Meet the 17 Global Goals",
+        "desc": "The UN’s Sustainable Development Goals, and why they matter to your community.",
+        "url": "SDG.html"
+      },
+      {
+        "title": "Teach a computer",
+        "desc": "Train your own simple AI model in the browser using pictures or sounds.",
+        "url": "https://teachablemachine.withgoogle.com"
+      },
+      {
+        "title": "Data detectives",
+        "desc": "Read charts and spot patterns in real data about the Goals.",
+        "url": "sdg-dashboard.html"
+      },
+      {
+        "title": "Your AI-for-good project",
+        "desc": "Pick a Goal, define a problem, sketch an AI idea, and present it to your class."
+      }
+    ]
+  },
+  "groups": [
+    {
+      "heading": "Class materials",
+      "intro": "Your class resources will appear here as the program runs.",
+      "items": [
+        {
+          "title": "Session slides",
+          "desc": "Slides from each class, ready to revisit.",
+          "tag": "Slides"
+        },
+        {
+          "title": "Worksheets and activities",
+          "desc": "Hands-on practice for each step of the learning path.",
+          "tag": "Practice"
+        },
+        {
+          "title": "Project guide",
+          "desc": "How to plan, build and present your AI-for-good project.",
+          "tag": "Guide"
+        },
+        {
+          "title": "AI word list",
+          "desc": "Plain-language meanings for the AI words you will hear in class.",
+          "tag": "Reference"
+        }
+      ]
+    },
+    {
+      "heading": "Tools to explore",
+      "intro": "Free sites to try at home. Ask a parent or teacher before signing up for anything.",
+      "items": [
+        {
+          "title": "Teachable Machine",
+          "desc": "Train an image, sound or pose model in minutes, with no coding.",
+          "tag": "Build",
+          "url": "https://teachablemachine.withgoogle.com"
+        },
+        {
+          "title": "Scratch",
+          "desc": "Create stories, games and animations by snapping code blocks together.",
+          "tag": "Code",
+          "url": "https://scratch.mit.edu"
+        },
+        {
+          "title": "Quick, Draw!",
+          "desc": "See how a neural network guesses your doodles.",
+          "tag": "Play",
+          "url": "https://quickdraw.withgoogle.com"
+        },
+        {
+          "title": "The Global Goals",
+          "desc": "Stories and ideas for each of the 17 Sustainable Development Goals.",
+          "tag": "SDGs",
+          "url": "https://www.globalgoals.org"
+        }
+      ]
+    }
+  ],
+  "progress": {
+    "heading": "My progress",
+    "intro": "Tick each step as you finish it.",
+    "items": [
+      "I know what AI is and where I see it",
+      "I explored the 17 Global Goals",
+      "I trained a model with Teachable Machine",
+      "I chose the Goal for my project",
+      "I presented my project"
+    ]
+  },
+  "help": "Questions? Ask your teacher or mentor, or write to us at"
+};
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+function norm(t) { return String(t || '').toLowerCase().replace(/\s+/g, ''); }
+function isExternal(url) { return /^https?:/i.test(url || ''); }
+
+function linkAttrs(item) {
+  if (!item.url) return '';
+  return ' href="' + esc(item.url) + '"' + (isExternal(item.url) ? ' target="_blank" rel="noopener noreferrer"' : '');
+}
+function statusHtml(item) {
+  if (!item.url) return '<span class="status">Coming soon</span>';
+  return '<span class="status link">' + (isExternal(item.url) ? 'Open site ↗' : 'Open →') + '</span>';
+}
+
+function stepItem(s, i) {
+  const el = s.url ? 'a' : 'div';
+  return '<li><' + el + ' class="card' + (s.url ? '' : ' soon') + '"' + linkAttrs(s) + '>' +
+    '<span class="num">' + (i + 1) + '</span><h3>' + esc(s.title) + '</h3><p>' + esc(s.desc) + '</p>' +
+    statusHtml(s) + '</' + el + '></li>';
+}
+function resourceCard(r) {
+  const el = r.url ? 'a' : 'div';
+  return '<li><' + el + ' class="card' + (r.url ? '' : ' soon') + '"' + linkAttrs(r) + '>' +
+    (r.tag ? '<span class="tag">' + esc(r.tag) + '</span>' : '') +
+    '<h3>' + esc(r.title) + '</h3><p>' + esc(r.desc) + '</p>' + statusHtml(r) + '</' + el + '></li>';
+}
+function blockHead(heading, intro) {
+  return '<div class="block-head"><h2>' + esc(heading) + '</h2>' + (intro ? '<p>' + esc(intro) + '</p>' : '') + '</div>';
+}
+
+function render(user) {
+  const name = String(user.firstName || user.username || '').trim();
+  let html = '<div class="wrap">' +
+    '<div class="hero"><div class="kicker">' + esc(PAGE.label) + ' Workspace</div>' +
+    '<h1>Welcome, ' + esc(name) + '</h1><p class="lede">' + esc(PAGE.intro) + '</p></div>';
+
+  html += '<section class="block">' + blockHead(PAGE.path.heading, PAGE.path.intro) +
+    '<ol class="steps">' + PAGE.path.steps.map(stepItem).join('') + '</ol></section>';
+
+  PAGE.groups.forEach(function (g) {
+    html += '<section class="block">' + blockHead(g.heading, g.intro) +
+      '<ul class="grid">' + g.items.map(resourceCard).join('') + '</ul></section>';
+  });
+
+  html += '<section class="block">' + blockHead(PAGE.progress.heading, PAGE.progress.intro) +
+    '<div class="progress-card">' +
+    '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progress"><span id="progress-bar"></span></div>' +
+    '<p class="progress-label" id="progress-label"></p>' +
+    '<div id="progress-list"></div>' +
+    '<p class="note">Your ticks are saved in this browser only.</p></div></section>';
+
+  html += '<section class="block"><div class="help-card"><p>' + esc(PAGE.help) +
+    ' <a href="mailto:sagikraju@braight.in">sagikraju@braight.in</a>.</p></div></section></div>';
+
+  document.getElementById('app').innerHTML = html;
+  setupProgress(user);
+}
+
+function setupProgress(user) {
+  const list = document.getElementById('progress-list');
+  const bar = document.getElementById('progress-bar');
+  const label = document.getElementById('progress-label');
+  const items = PAGE.progress.items;
+  const key = 'braight_progress_' + PAGE.slug + '_' + (user.username || '');
+  let done = {};
+  try { done = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { done = {}; }
+
+  list.innerHTML = items.map(function (t, i) {
+    return '<label class="check"><input type="checkbox" data-i="' + i + '"' + (done[i] ? ' checked' : '') + '><span>' + esc(t) + '</span></label>';
+  }).join('');
+
+  function update() {
+    const n = list.querySelectorAll('input:checked').length;
+    const pct = Math.round(n / items.length * 100);
+    bar.style.width = pct + '%';
+    bar.parentElement.setAttribute('aria-valuenow', pct);
+    label.textContent = n + ' of ' + items.length + ' steps done (' + pct + '%)';
+  }
+  list.addEventListener('change', function (e) {
+    const box = e.target;
+    if (!box || !box.matches('input[type="checkbox"]')) return;
+    done[box.dataset.i] = box.checked;
+    try { localStorage.setItem(key, JSON.stringify(done)); } catch (err) { /* storage unavailable: still works this visit */ }
+    update();
+  });
+  update();
+}
+
+(function () {
+  const app = document.getElementById('app');
+  // Fail closed: never show the workspace without the session script.
+  if (typeof AppSession === 'undefined') {
+    app.innerHTML = '<div class="wrap"><p class="lede">The session script (admin-session.js) did not load or is out of date. Please refresh the page (Ctrl+F5) or contact the administrator.</p></div>';
+    return;
+  }
+  const user = AppSession.init({
+    requireAdmin: false,
+    // Called when the session times out or is rejected by the server: wipe what's on screen.
+    onSessionEnd: function () {
+      app.innerHTML = '<div class="wrap"><p class="lede">Session ended.</p></div>';
+    }
+  });
+  if (!user) return;   // not logged in: already redirected to Login.html
+
+  // This page is for one user type; Workspace.html sends everyone to the right page.
+  if (norm(user.userType) !== PAGE.slug) { window.location.replace('Workspace.html'); return; }
+
+  document.getElementById('logout-btn').addEventListener('click', function () { AppSession.logout(); });
+  render(user);
+})();
+</script>
+</body>
+</html>
