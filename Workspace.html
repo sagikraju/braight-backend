@@ -90,9 +90,24 @@ nav a.active, .nav a.active, header a.active {
   </div>
 </footer>
 
-<script src="admin-session.js"></script>
+<script src="admin-session.js?v=2"></script>
 <script>
 (function(){
+  // Fail closed: if the session script is missing or out of date, never run this page unprotected.
+  if (typeof AppSession === 'undefined') {
+    document.querySelector('.hero').innerHTML =
+      '<p class="lede">The session script (admin-session.js) did not load or is out of date. ' +
+      'Please refresh the page (Ctrl+F5) or contact the administrator.</p>';
+    return;
+  }
+  // Send each user type to its own workspace page (Login.html still just opens Workspace.html).
+  let stored = null;
+  try { stored = JSON.parse(sessionStorage.getItem('braight_user') || 'null'); } catch (e) { /* ignore */ }
+  const kind = String((stored && stored.userType) || '').toLowerCase().replace(/\s+/g, '');
+  if (kind === 'student') { window.location.replace('StudentWorkspace.html'); return; }
+  if (kind === 'jobseeker') { window.location.replace('JobseekerWorkspace.html'); return; }
+  if (kind === 'admin') { window.location.replace('AdminHome.html'); return; }
+
   const user = AppSession.init({
     requireAdmin: false,
     // Called when the session times out or is rejected by the server: wipe what's on screen.
