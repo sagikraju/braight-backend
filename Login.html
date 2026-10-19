@@ -138,7 +138,7 @@ footer b { color:var(--navy); }
 </footer>
 
 <script>
-const API_BASE = "https://api.braight.in";
+const API_BASE = "https://braight-backend.onrender.com";
 
 document.getElementById('login-form').addEventListener('submit', async function (e) {
   e.preventDefault();
@@ -167,11 +167,14 @@ document.getElementById('login-form').addEventListener('submit', async function 
     }
     sessionStorage.setItem('braight_user', JSON.stringify(data.user));
     
-    if (data.user.userType && data.user.userType.toUpperCase() === 'ADMIN') {
-      window.location.href = 'AdminHome.html';
-    } else {
-      window.location.href = 'Workspace.html';
-    }
+    // Go straight to the page for this user type. Workspace.html is only the fallback for any other type.
+    const kind = String(data.user.userType || '').toLowerCase().replace(/\s+/g, '');
+    const destinations = {
+      admin: 'AdminHome.html',
+      student: 'StudentWorkspace.html',
+      jobseeker: 'JobseekerWorkspace.html'
+    };
+    window.location.href = destinations[kind] || 'Workspace.html';
   } catch (err) {
     errorBox.textContent = 'Could not reach the server. Is the backend running?';
     errorBox.style.display = 'block';
