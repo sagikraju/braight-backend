@@ -88,7 +88,7 @@ footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:
 footer b { color:var(--navy); }
 
 @media (max-width:800px) {
-  .layout { grid-template-columns:1fr; gap:24px; }
+  .layout { grid-template-columns:minmax(0,1fr); gap:24px; }
   .sidebar { position:static; }
   .sidebar nav { flex-direction:row; flex-wrap:wrap; }
 }
@@ -112,7 +112,7 @@ footer b { color:var(--navy); }
         <div class="side-title">Dashboard</div>
         <nav>
           <a class="side-link" href="UserProfile.html">User Profile</a>
-          <a class="side-link soon" href="#" title="Coming soon">Active Sessions <span class="soon-tag">Soon</span></a>
+          <a class="side-link" href="ActiveSessions.html">Active Sessions</a>
           <a class="side-link soon" href="#" title="Coming soon">Server Dashboard <span class="soon-tag">Soon</span></a>
         </nav>
       </aside>
