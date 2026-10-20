@@ -380,6 +380,37 @@ def admin_get_profile():
         return jsonify({"error": "Could not retrieve profile."}), 500
 
 
+@app.route("/api/admin/active-sessions", methods=["GET"])
+@require_admin
+def admin_active_sessions():
+    """
+    Database sessions that are running a query right now (admins only).
+    Read-only and fixed: the SQL below is the only thing ever executed here and
+    nothing from the request is put into it. Note: PostgreSQL hides the query
+    text and some columns of other roles' sessions unless this database user
+    has the privileges to see them.
+    """
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT pid, usename Username, datname DBName, client_addr, state, query
+                FROM pg_stat_activity
+                WHERE state = 'active'
+                  AND pid <> pg_backend_pid()
+                """
+            )
+            rows = cur.fetchall()
+        for r in rows:
+            # client_addr is an inet value (ipaddress object); make it JSON-friendly
+            if r.get("client_addr") is not None:
+                r["client_addr"] = str(r["client_addr"])
+        return jsonify({"sessions": rows}), 200
+    except Exception:
+        logger.exception("admin_active_sessions failed")
+        return jsonify({"error": "Could not retrieve active sessions."}), 500
+
+
 @app.route("/api/session/logout", methods=["POST"])
 @app.route("/api/admin/logout", methods=["POST"])  # old path, kept for pages cached before the update
 def session_logout():
