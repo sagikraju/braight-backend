@@ -53,6 +53,20 @@ main { min-height:60vh; }
 .block-head { margin-bottom:20px; }
 .block-head p { color:var(--sub); margin:6px 0 0; max-width:70ch; }
 
+/* program at a glance */
+.facts { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); margin-top:28px; }
+.fact { display:flex; flex-direction:column; gap:2px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 18px; }
+.fact-label { font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); }
+.fact-value { font-size:15px; color:var(--text); }
+
+/* project themes */
+.themes { list-style:none; margin:0; padding:0; display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+.theme { display:flex; flex-direction:column; gap:6px; background:var(--panel); border:1px solid var(--border); border-left:5px solid var(--accent,var(--amber)); border-radius:12px; padding:18px 20px; }
+.theme:nth-child(1) { --accent:var(--amber); }
+.theme:nth-child(2) { --accent:var(--navy-soft); }
+.theme:nth-child(3) { --accent:var(--moss); }
+.theme p { margin:0; color:var(--sub); }
+
 .steps, .grid { list-style:none; margin:0; padding:0; display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
 .card { display:flex; flex-direction:column; gap:6px; height:100%; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 18px 16px; text-decoration:none; color:inherit; }
 a.card:hover { border-color:var(--amber); }
@@ -65,12 +79,17 @@ a.card:focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
 .status.link { color:var(--navy); border-bottom:2px solid var(--amber); align-self:flex-start; }
 
 .progress-card, .help-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
-.bar { height:8px; background:var(--border); border-radius:999px; overflow:hidden; margin:12px 0 6px; }
+.bar { height:8px; background:var(--border); border-radius:999px; overflow:hidden; margin:0 0 6px; }
 .bar > span { display:block; height:100%; width:0; background:var(--moss); transition:width .25s ease; }
-.progress-label { font-size:14px; color:var(--sub); margin:0 0 12px; }
+.progress-label { font-size:14px; color:var(--sub); margin:0 0 4px; }
+.group-title { font-size:12.5px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); margin:18px 0 6px; }
 .check { display:flex; gap:10px; align-items:flex-start; padding:7px 0; cursor:pointer; font-size:15.5px; }
-.check input { margin-top:5px; width:16px; height:16px; accent-color:var(--moss); flex-shrink:0; }
-.note { font-size:13px; color:var(--sub); margin:12px 0 0; }
+.check input, .chip input { accent-color:var(--moss); flex-shrink:0; }
+.check input { margin-top:5px; width:16px; height:16px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:999px; padding:6px 14px; cursor:pointer; font-size:14.5px; background:var(--bg); }
+.chip:has(input:checked) { background:var(--navy); color:var(--bg); border-color:var(--navy); }
+.note { font-size:13px; color:var(--sub); margin:14px 0 0; }
 .help-card p { margin:0; color:var(--sub); }
 .help-card a { color:var(--navy); font-weight:600; border-bottom:2px solid var(--amber); text-decoration:none; }
 
@@ -120,88 +139,126 @@ footer b { color:var(--navy); }
 const PAGE = {
   "slug": "student",
   "label": "Student",
-  "intro": "Explore how AI can help solve real-world problems, from clean water to climate action. Follow the learning path, try the tools, and build your own AI-for-good project.",
+  "intro": "Use Python and AI to explore real energy, water and climate data, then turn what you find into a practical idea you can present.",
+  "glance": [
+    {
+      "label": "For",
+      "value": "Grade 9 or 10 · no coding background needed"
+    },
+    {
+      "label": "Duration",
+      "value": "8 weekly sessions · 45–60 minutes each"
+    },
+    {
+      "label": "Format",
+      "value": "Hands-on and project-based"
+    },
+    {
+      "label": "Facilitation",
+      "value": "Co-led with your CS / EVS teacher"
+    }
+  ],
+  "themes": {
+    "heading": "Your project themes",
+    "intro": "You will work on one of the Sustainable Development Goals you already learn about, using local, relatable data. Each student leaves with one small project they built and can present.",
+    "items": [
+      {
+        "title": "Energy",
+        "desc": "Usage patterns and conservation ideas.",
+        "tag": "SDG 7"
+      },
+      {
+        "title": "Water",
+        "desc": "Consumption and waste trends.",
+        "tag": "SDG 6"
+      },
+      {
+        "title": "Climate & Air",
+        "desc": "Reading local environmental data.",
+        "tag": "SDG 13"
+      }
+    ]
+  },
   "path": {
-    "heading": "Your learning path",
-    "intro": "Work through these steps in order. Each one builds on the last.",
+    "heading": "How it works",
+    "intro": "Built on real industry tools. Three steps, then you present what you made.",
     "steps": [
       {
-        "title": "What is AI?",
-        "desc": "How computers learn from examples, and where you already meet AI every day."
+        "title": "Explore and analyze with Python",
+        "desc": "Work with real energy, water and climate datasets using Python, the same language used in professional data science."
       },
       {
-        "title": "Meet the 17 Global Goals",
-        "desc": "The UN’s Sustainable Development Goals, and why they matter to your community.",
-        "url": "SDG.html"
+        "title": "Generate insights with AI",
+        "desc": "With your facilitator, use AI tools to summarize patterns, brainstorm solutions and explain your findings in plain language."
       },
       {
-        "title": "Teach a computer",
-        "desc": "Train your own simple AI model in the browser using pictures or sounds.",
-        "url": "https://teachablemachine.withgoogle.com"
+        "title": "Propose solutions",
+        "desc": "Turn your analysis into a practical, AI-informed sustainability idea to present."
       },
       {
-        "title": "Data detectives",
-        "desc": "Read charts and spot patterns in real data about the Goals.",
-        "url": "sdg-dashboard.html"
-      },
-      {
-        "title": "Your AI-for-good project",
-        "desc": "Pick a Goal, define a problem, sketch an AI idea, and present it to your class."
+        "title": "Present your project",
+        "desc": "Share the project you built in the final session."
       }
     ]
   },
   "groups": [
     {
-      "heading": "Class materials",
-      "intro": "Your class resources will appear here as the program runs.",
+      "heading": "Program materials",
+      "intro": "Your resources will appear here as the program runs.",
       "items": [
         {
           "title": "Session slides",
-          "desc": "Slides from each class, ready to revisit.",
+          "desc": "Slides from each weekly session, ready to revisit.",
           "tag": "Slides"
         },
         {
           "title": "Worksheets and activities",
-          "desc": "Hands-on practice for each step of the learning path.",
+          "desc": "Hands-on practice to go with each session.",
           "tag": "Practice"
         },
         {
-          "title": "Project guide",
-          "desc": "How to plan, build and present your AI-for-good project.",
-          "tag": "Guide"
+          "title": "Datasets for your theme",
+          "desc": "Energy, water and climate data shared by your facilitator.",
+          "tag": "Data"
         },
         {
-          "title": "AI word list",
-          "desc": "Plain-language meanings for the AI words you will hear in class.",
-          "tag": "Reference"
+          "title": "Project guide",
+          "desc": "How to plan, build and present your project.",
+          "tag": "Guide"
         }
       ]
     },
     {
-      "heading": "Tools to explore",
-      "intro": "Free sites to try at home. Ask a parent or teacher before signing up for anything.",
+      "heading": "Learn and explore",
+      "intro": "Free places to practice Python and explore data between sessions. Ask a parent or teacher before signing up for anything.",
       "items": [
         {
-          "title": "Teachable Machine",
-          "desc": "Train an image, sound or pose model in minutes, with no coding.",
-          "tag": "Build",
-          "url": "https://teachablemachine.withgoogle.com"
+          "title": "Python beginner’s guide",
+          "desc": "Where to start if you are new to Python.",
+          "tag": "Python",
+          "url": "https://wiki.python.org/moin/BeginnersGuide"
         },
         {
-          "title": "Scratch",
-          "desc": "Create stories, games and animations by snapping code blocks together.",
-          "tag": "Code",
-          "url": "https://scratch.mit.edu"
+          "title": "Kaggle Learn: Python",
+          "desc": "Short, hands-on lessons that teach Python basics.",
+          "tag": "Python",
+          "url": "https://www.kaggle.com/learn/python"
         },
         {
-          "title": "Quick, Draw!",
-          "desc": "See how a neural network guesses your doodles.",
-          "tag": "Play",
-          "url": "https://quickdraw.withgoogle.com"
+          "title": "SDG Dashboard",
+          "desc": "Explore data about the Sustainable Development Goals.",
+          "tag": "Data",
+          "url": "sdg-dashboard.html"
+        },
+        {
+          "title": "Our World in Data",
+          "desc": "Free charts on energy, water, climate and more.",
+          "tag": "Data",
+          "url": "https://ourworldindata.org"
         },
         {
           "title": "The Global Goals",
-          "desc": "Stories and ideas for each of the 17 Sustainable Development Goals.",
+          "desc": "Stories and ideas for each Sustainable Development Goal.",
           "tag": "SDGs",
           "url": "https://www.globalgoals.org"
         }
@@ -210,16 +267,35 @@ const PAGE = {
   ],
   "progress": {
     "heading": "My progress",
-    "intro": "Tick each step as you finish it.",
-    "items": [
-      "I know what AI is and where I see it",
-      "I explored the 17 Global Goals",
-      "I trained a model with Teachable Machine",
-      "I chose the Goal for my project",
-      "I presented my project"
+    "intro": "Tick each item as you finish it.",
+    "groups": [
+      {
+        "title": "Milestones",
+        "items": [
+          "I explored a real dataset with Python",
+          "I used AI tools to summarize patterns in my data",
+          "I chose my theme: Energy, Water or Climate & Air",
+          "I proposed a solution",
+          "I presented my project in the final session"
+        ]
+      },
+      {
+        "title": "Sessions I have completed",
+        "chips": true,
+        "items": [
+          "Session 1",
+          "Session 2",
+          "Session 3",
+          "Session 4",
+          "Session 5",
+          "Session 6",
+          "Session 7",
+          "Session 8 (final)"
+        ]
+      }
     ]
   },
-  "help": "Questions? Ask your teacher or mentor, or write to us at"
+  "help": "Questions? Ask your teacher or facilitator, or write to us at"
 };
 
 function esc(v) {
@@ -239,6 +315,14 @@ function statusHtml(item) {
   return '<span class="status link">' + (isExternal(item.url) ? 'Open site ↗' : 'Open →') + '</span>';
 }
 
+function factsHtml(items) {
+  return '<div class="facts">' + items.map(function (f) {
+    return '<div class="fact"><span class="fact-label">' + esc(f.label) + '</span><span class="fact-value">' + esc(f.value) + '</span></div>';
+  }).join('') + '</div>';
+}
+function themeCard(t) {
+  return '<li class="theme"><span class="tag">' + esc(t.tag) + '</span><h3>' + esc(t.title) + '</h3><p>' + esc(t.desc) + '</p></li>';
+}
 function stepItem(s, i) {
   const el = s.url ? 'a' : 'div';
   return '<li><' + el + ' class="card' + (s.url ? '' : ' soon') + '"' + linkAttrs(s) + '>' +
@@ -259,7 +343,11 @@ function render(user) {
   const name = String(user.firstName || user.username || '').trim();
   let html = '<div class="wrap">' +
     '<div class="hero"><div class="kicker">' + esc(PAGE.label) + ' Workspace</div>' +
-    '<h1>Welcome, ' + esc(name) + '</h1><p class="lede">' + esc(PAGE.intro) + '</p></div>';
+    '<h1>Welcome, ' + esc(name) + '</h1><p class="lede">' + esc(PAGE.intro) + '</p>' +
+    factsHtml(PAGE.glance) + '</div>';
+
+  html += '<section class="block">' + blockHead(PAGE.themes.heading, PAGE.themes.intro) +
+    '<ul class="themes">' + PAGE.themes.items.map(themeCard).join('') + '</ul></section>';
 
   html += '<section class="block">' + blockHead(PAGE.path.heading, PAGE.path.intro) +
     '<ol class="steps">' + PAGE.path.steps.map(stepItem).join('') + '</ol></section>';
@@ -287,26 +375,35 @@ function setupProgress(user) {
   const list = document.getElementById('progress-list');
   const bar = document.getElementById('progress-bar');
   const label = document.getElementById('progress-label');
-  const items = PAGE.progress.items;
-  const key = 'braight_progress_' + PAGE.slug + '_' + (user.username || '');
+  const groups = PAGE.progress.groups;
+  let total = 0;
+  groups.forEach(function (g) { total += g.items.length; });
+  const key = 'braight_progress_v2_' + PAGE.slug + '_' + (user.username || '');
   let done = {};
   try { done = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { done = {}; }
 
-  list.innerHTML = items.map(function (t, i) {
-    return '<label class="check"><input type="checkbox" data-i="' + i + '"' + (done[i] ? ' checked' : '') + '><span>' + esc(t) + '</span></label>';
+  list.innerHTML = groups.map(function (g, gi) {
+    const rows = g.items.map(function (t, i) {
+      const k = gi + '-' + i;
+      const input = '<input type="checkbox" data-k="' + k + '"' + (done[k] ? ' checked' : '') + '>';
+      return g.chips
+        ? '<label class="chip">' + input + '<span>' + esc(t) + '</span></label>'
+        : '<label class="check">' + input + '<span>' + esc(t) + '</span></label>';
+    }).join('');
+    return '<div class="group-title">' + esc(g.title) + '</div>' + (g.chips ? '<div class="chips">' + rows + '</div>' : rows);
   }).join('');
 
   function update() {
     const n = list.querySelectorAll('input:checked').length;
-    const pct = Math.round(n / items.length * 100);
+    const pct = Math.round(n / total * 100);
     bar.style.width = pct + '%';
     bar.parentElement.setAttribute('aria-valuenow', pct);
-    label.textContent = n + ' of ' + items.length + ' steps done (' + pct + '%)';
+    label.textContent = n + ' of ' + total + ' done (' + pct + '%)';
   }
   list.addEventListener('change', function (e) {
     const box = e.target;
     if (!box || !box.matches('input[type="checkbox"]')) return;
-    done[box.dataset.i] = box.checked;
+    done[box.dataset.k] = box.checked;
     try { localStorage.setItem(key, JSON.stringify(done)); } catch (err) { /* storage unavailable: still works this visit */ }
     update();
   });
