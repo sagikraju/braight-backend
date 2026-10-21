@@ -53,6 +53,20 @@ main { min-height:60vh; }
 .block-head { margin-bottom:20px; }
 .block-head p { color:var(--sub); margin:6px 0 0; max-width:70ch; }
 
+/* program at a glance */
+.facts { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); margin-top:28px; }
+.fact { display:flex; flex-direction:column; gap:2px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 18px; }
+.fact-label { font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); }
+.fact-value { font-size:15px; color:var(--text); }
+
+/* project themes */
+.themes { list-style:none; margin:0; padding:0; display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+.theme { display:flex; flex-direction:column; gap:6px; background:var(--panel); border:1px solid var(--border); border-left:5px solid var(--accent,var(--amber)); border-radius:12px; padding:18px 20px; }
+.theme:nth-child(1) { --accent:var(--amber); }
+.theme:nth-child(2) { --accent:var(--navy-soft); }
+.theme:nth-child(3) { --accent:var(--moss); }
+.theme p { margin:0; color:var(--sub); }
+
 .steps, .grid { list-style:none; margin:0; padding:0; display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
 .card { display:flex; flex-direction:column; gap:6px; height:100%; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 18px 16px; text-decoration:none; color:inherit; }
 a.card:hover { border-color:var(--amber); }
@@ -65,12 +79,17 @@ a.card:focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
 .status.link { color:var(--navy); border-bottom:2px solid var(--amber); align-self:flex-start; }
 
 .progress-card, .help-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
-.bar { height:8px; background:var(--border); border-radius:999px; overflow:hidden; margin:12px 0 6px; }
+.bar { height:8px; background:var(--border); border-radius:999px; overflow:hidden; margin:0 0 6px; }
 .bar > span { display:block; height:100%; width:0; background:var(--moss); transition:width .25s ease; }
-.progress-label { font-size:14px; color:var(--sub); margin:0 0 12px; }
+.progress-label { font-size:14px; color:var(--sub); margin:0 0 4px; }
+.group-title { font-size:12.5px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); margin:18px 0 6px; }
 .check { display:flex; gap:10px; align-items:flex-start; padding:7px 0; cursor:pointer; font-size:15.5px; }
-.check input { margin-top:5px; width:16px; height:16px; accent-color:var(--moss); flex-shrink:0; }
-.note { font-size:13px; color:var(--sub); margin:12px 0 0; }
+.check input, .chip input { accent-color:var(--moss); flex-shrink:0; }
+.check input { margin-top:5px; width:16px; height:16px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:999px; padding:6px 14px; cursor:pointer; font-size:14.5px; background:var(--bg); }
+.chip:has(input:checked) { background:var(--navy); color:var(--bg); border-color:var(--navy); }
+.note { font-size:13px; color:var(--sub); margin:14px 0 0; }
 .help-card p { margin:0; color:var(--sub); }
 .help-card a { color:var(--navy); font-weight:600; border-bottom:2px solid var(--amber); text-decoration:none; }
 
@@ -120,46 +139,84 @@ footer b { color:var(--navy); }
 const PAGE = {
   "slug": "jobseeker",
   "label": "Jobseeker",
-  "intro": "Build job-ready data skills with Python and generative AI, using real sustainable-development data. Follow the learning path, use the resources, and finish with a portfolio project.",
+  "intro": "Build one complete, portfolio-ready project by applying Python, visualization, modeling and generative AI to real energy, water and climate data.",
+  "glance": [
+    {
+      "label": "For",
+      "value": "Freshers and job seekers · no prior AI experience needed"
+    },
+    {
+      "label": "Duration",
+      "value": "8 weekly sessions · 60–90 minutes each"
+    },
+    {
+      "label": "Format",
+      "value": "Hands-on and project-based · build a real portfolio"
+    },
+    {
+      "label": "Mentorship",
+      "value": "Led by an industry practitioner with 22+ years in data and AI"
+    },
+    {
+      "label": "Next cohort",
+      "value": "October"
+    }
+  ],
+  "themes": {
+    "heading": "Your project themes",
+    "intro": "You will apply your skills to real Sustainable Development Goals using live, relatable datasets. Each participant leaves with one complete, portfolio-ready project.",
+    "items": [
+      {
+        "title": "Energy",
+        "desc": "Usage patterns and conservation ideas.",
+        "tag": "SDG 7"
+      },
+      {
+        "title": "Water",
+        "desc": "Consumption and waste trends.",
+        "tag": "SDG 6"
+      },
+      {
+        "title": "Climate & Air",
+        "desc": "Reading local environmental data.",
+        "tag": "SDG 13"
+      }
+    ]
+  },
   "path": {
-    "heading": "Your learning path",
-    "intro": "Move through the program step by step, from raw data to insights you can present.",
+    "heading": "How it works",
+    "intro": "Built on real industry tools. Four steps from raw data to insights, then your portfolio project.",
     "steps": [
       {
-        "title": "Python for data analysis",
-        "desc": "Load, clean and explore data with pandas and NumPy."
+        "title": "Analyze with Python",
+        "desc": "Work with real energy, water and climate datasets using Python, the same language used in professional data science."
       },
       {
-        "title": "Data visualization",
-        "desc": "Turn tables into clear charts and a story people can follow."
+        "title": "Visualize",
+        "desc": "Turn raw data into clear visualizations that reveal patterns and trends."
       },
       {
-        "title": "Modeling basics",
-        "desc": "Fit and evaluate your first predictive models with scikit-learn."
+        "title": "Model",
+        "desc": "Build simple predictive models to forecast trends and simulate scenarios."
       },
       {
-        "title": "Insights with generative AI",
-        "desc": "Use Claude and other generative AI tools to explore data, write and debug code, and explain findings."
+        "title": "Generate insights with Claude and generative AI",
+        "desc": "Use AI tools to summarize findings, generate recommendations and communicate insights clearly."
       },
       {
-        "title": "Capstone: an SDG data project",
-        "desc": "Choose an SDG indicator, analyze it end to end, and present your insights.",
-        "url": "sdg-dashboard.html"
-      },
-      {
-        "title": "Career readiness",
-        "desc": "Resume, portfolio and interview preparation."
+        "title": "Finish your portfolio project",
+        "desc": "Complete one real, demonstrable AI and sustainability project for your resume and interviews."
       }
     ]
   },
   "groups": [
     {
       "heading": "Program materials",
-      "intro": "Your cohort resources will appear here as the program runs.",
+      "intro": "Your resources will appear here as the program runs.",
       "items": [
         {
           "title": "Notebooks and datasets",
-          "desc": "Practice notebooks and the data used in each session.",
+          "desc": "Practice notebooks and the energy, water and climate data used in each session.",
           "tag": "Practice"
         },
         {
@@ -168,13 +225,13 @@ const PAGE = {
           "tag": "Slides"
         },
         {
-          "title": "Capstone brief and rubric",
+          "title": "Portfolio project brief",
           "desc": "What to build, and how your project will be reviewed.",
           "tag": "Guide"
         },
         {
-          "title": "Resume and portfolio templates",
-          "desc": "Starting points for presenting your projects to employers.",
+          "title": "Portfolio guide",
+          "desc": "How to present your project on your resume and in interviews.",
           "tag": "Career"
         }
       ]
@@ -198,21 +255,27 @@ const PAGE = {
         {
           "title": "Matplotlib tutorials",
           "desc": "Official guides for building charts step by step.",
-          "tag": "Charts",
+          "tag": "Visualize",
           "url": "https://matplotlib.org/stable/tutorials/index.html"
         },
         {
           "title": "scikit-learn tutorials",
-          "desc": "Official walkthroughs for modeling and evaluating results.",
-          "tag": "Modeling",
+          "desc": "Official walkthroughs for building simple predictive models.",
+          "tag": "Model",
           "url": "https://scikit-learn.org/stable/tutorial/index.html"
         }
       ]
     },
     {
       "heading": "Data and AI tools",
-      "intro": "Sources and guides for your capstone and your day-to-day work with AI.",
+      "intro": "Sources and guides for your project and your day-to-day work with AI.",
       "items": [
+        {
+          "title": "SDG Dashboard",
+          "desc": "Explore data about the Sustainable Development Goals.",
+          "tag": "Data",
+          "url": "sdg-dashboard.html"
+        },
         {
           "title": "UN SDG Data Portal",
           "desc": "Official data for the Sustainable Development Goal indicators.",
@@ -221,7 +284,7 @@ const PAGE = {
         },
         {
           "title": "Our World in Data",
-          "desc": "Free charts and datasets on global development topics.",
+          "desc": "Free charts and datasets on energy, water, climate and more.",
           "tag": "Data",
           "url": "https://ourworldindata.org"
         },
@@ -236,17 +299,37 @@ const PAGE = {
   ],
   "progress": {
     "heading": "My progress",
-    "intro": "Tick each step as you finish it.",
-    "items": [
-      "I completed Python for data analysis",
-      "I built my first charts",
-      "I trained and evaluated a model",
-      "I used generative AI to analyze data",
-      "I finished my capstone project",
-      "I updated my resume and portfolio"
+    "intro": "Tick each item as you finish it.",
+    "groups": [
+      {
+        "title": "Milestones",
+        "items": [
+          "I analyzed a real dataset with Python",
+          "I built clear visualizations",
+          "I built a simple predictive model",
+          "I used AI tools to generate insights and recommendations",
+          "I chose my theme: Energy, Water or Climate & Air",
+          "I finished my portfolio project",
+          "I added it to my resume and portfolio"
+        ]
+      },
+      {
+        "title": "Sessions I have completed",
+        "chips": true,
+        "items": [
+          "Session 1",
+          "Session 2",
+          "Session 3",
+          "Session 4",
+          "Session 5",
+          "Session 6",
+          "Session 7",
+          "Session 8"
+        ]
+      }
     ]
   },
-  "help": "Questions or feedback? Write to us at"
+  "help": "Questions? Reach your mentor or write to us at"
 };
 
 function esc(v) {
@@ -266,6 +349,14 @@ function statusHtml(item) {
   return '<span class="status link">' + (isExternal(item.url) ? 'Open site ↗' : 'Open →') + '</span>';
 }
 
+function factsHtml(items) {
+  return '<div class="facts">' + items.map(function (f) {
+    return '<div class="fact"><span class="fact-label">' + esc(f.label) + '</span><span class="fact-value">' + esc(f.value) + '</span></div>';
+  }).join('') + '</div>';
+}
+function themeCard(t) {
+  return '<li class="theme"><span class="tag">' + esc(t.tag) + '</span><h3>' + esc(t.title) + '</h3><p>' + esc(t.desc) + '</p></li>';
+}
 function stepItem(s, i) {
   const el = s.url ? 'a' : 'div';
   return '<li><' + el + ' class="card' + (s.url ? '' : ' soon') + '"' + linkAttrs(s) + '>' +
@@ -286,7 +377,11 @@ function render(user) {
   const name = String(user.firstName || user.username || '').trim();
   let html = '<div class="wrap">' +
     '<div class="hero"><div class="kicker">' + esc(PAGE.label) + ' Workspace</div>' +
-    '<h1>Welcome, ' + esc(name) + '</h1><p class="lede">' + esc(PAGE.intro) + '</p></div>';
+    '<h1>Welcome, ' + esc(name) + '</h1><p class="lede">' + esc(PAGE.intro) + '</p>' +
+    factsHtml(PAGE.glance) + '</div>';
+
+  html += '<section class="block">' + blockHead(PAGE.themes.heading, PAGE.themes.intro) +
+    '<ul class="themes">' + PAGE.themes.items.map(themeCard).join('') + '</ul></section>';
 
   html += '<section class="block">' + blockHead(PAGE.path.heading, PAGE.path.intro) +
     '<ol class="steps">' + PAGE.path.steps.map(stepItem).join('') + '</ol></section>';
@@ -314,26 +409,35 @@ function setupProgress(user) {
   const list = document.getElementById('progress-list');
   const bar = document.getElementById('progress-bar');
   const label = document.getElementById('progress-label');
-  const items = PAGE.progress.items;
-  const key = 'braight_progress_' + PAGE.slug + '_' + (user.username || '');
+  const groups = PAGE.progress.groups;
+  let total = 0;
+  groups.forEach(function (g) { total += g.items.length; });
+  const key = 'braight_progress_v2_' + PAGE.slug + '_' + (user.username || '');
   let done = {};
   try { done = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { done = {}; }
 
-  list.innerHTML = items.map(function (t, i) {
-    return '<label class="check"><input type="checkbox" data-i="' + i + '"' + (done[i] ? ' checked' : '') + '><span>' + esc(t) + '</span></label>';
+  list.innerHTML = groups.map(function (g, gi) {
+    const rows = g.items.map(function (t, i) {
+      const k = gi + '-' + i;
+      const input = '<input type="checkbox" data-k="' + k + '"' + (done[k] ? ' checked' : '') + '>';
+      return g.chips
+        ? '<label class="chip">' + input + '<span>' + esc(t) + '</span></label>'
+        : '<label class="check">' + input + '<span>' + esc(t) + '</span></label>';
+    }).join('');
+    return '<div class="group-title">' + esc(g.title) + '</div>' + (g.chips ? '<div class="chips">' + rows + '</div>' : rows);
   }).join('');
 
   function update() {
     const n = list.querySelectorAll('input:checked').length;
-    const pct = Math.round(n / items.length * 100);
+    const pct = Math.round(n / total * 100);
     bar.style.width = pct + '%';
     bar.parentElement.setAttribute('aria-valuenow', pct);
-    label.textContent = n + ' of ' + items.length + ' steps done (' + pct + '%)';
+    label.textContent = n + ' of ' + total + ' done (' + pct + '%)';
   }
   list.addEventListener('change', function (e) {
     const box = e.target;
     if (!box || !box.matches('input[type="checkbox"]')) return;
-    done[box.dataset.i] = box.checked;
+    done[box.dataset.k] = box.checked;
     try { localStorage.setItem(key, JSON.stringify(done)); } catch (err) { /* storage unavailable: still works this visit */ }
     update();
   });
