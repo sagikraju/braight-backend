@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Applications — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D; --green:#2E7D32; --row-alt:#F4F7FB;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+    --green:#4CAF50; --row-alt:#182333;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  --green:#4CAF50; --row-alt:#182333;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+}
+a { color:inherit; }
+.wrap { max-width:1200px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+.user-info { display:flex; align-items:center; gap:16px; font-size:14px; color:var(--sub); }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; }
+.logout-btn:hover { background:var(--border); }
+
+main { padding:40px 0 60px; }
+
+/* Left dashboard */
+.layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:32px; align-items:start; }
+.sidebar { position:sticky; top:96px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 12px; }
+.side-title { font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); padding:0 12px 10px; }
+.sidebar nav { display:flex; flex-direction:column; gap:4px; }
+.side-link { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-radius:8px; border-left:3px solid transparent; text-decoration:none; color:var(--text); font-size:14.5px; font-weight:500; }
+.side-link:hover { background:var(--row-alt); }
+.side-link.on { color:var(--navy); font-weight:600; border-left-color:var(--amber); background:var(--row-alt); }
+.side-link.soon { color:var(--sub); cursor:default; }
+.soon-tag { font-size:11px; font-weight:600; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 8px; }
+
+h1 { font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--navy); margin:0 0 8px; }
+.lede { color:var(--sub); margin:0 0 24px; font-size:15px; }
+
+.table-container { width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+table { width:100%; border-collapse:collapse; text-align:left; font-size:14.5px; }
+th, td { padding:14px 18px; border-bottom:1px solid var(--border); }
+th { background:var(--navy); color:#FFFFFF; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:0.03em; }
+:root[data-theme="dark"] th { color:#101823; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) th { color:#101823; }
+}
+tr:nth-child(even) td { background-color: var(--row-alt); }
+tr:last-child td { border-bottom:none; }
+
+.user-link { color:var(--navy); font-weight:600; text-decoration:none; border-bottom:2px solid var(--amber); }
+.user-link:hover { opacity:0.8; }
+
+.toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+.meta { font-size:14px; color:var(--sub); }
+.refresh-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; font-size:14px; }
+.refresh-btn:hover { background:var(--border); }
+.refresh-btn[disabled] { opacity:0.6; cursor:default; }
+td { vertical-align:top; }
+td .q { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:9em; overflow:auto; min-width:260px; }
+.dim { color:var(--sub); }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; margin-top:60px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+
+@media (max-width:800px) {
+  .layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .sidebar { position:static; }
+  .sidebar nav { flex-direction:row; flex-wrap:wrap; }
+}
+
+.table-container { position:relative; }   /* keeps the hidden 'Actions' heading inside the scroll area */
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.toolbar .left, .toolbar .right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.toolbar label { font-size:13px; font-weight:600; color:var(--label); }
+.toolbar .left, .toolbar .right { max-width:100%; }
+.toolbar select { max-width:100%; min-width:0; padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; font-size:14px; }
+.btn { background:var(--amber); color:#17324F; font-weight:700; border:none; border-radius:8px; padding:9px 18px; font:inherit; font-weight:700; cursor:pointer; }
+.btn[disabled] { opacity:0.6; cursor:default; }
+.btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); font-weight:600; }
+.btn-ghost:hover { background:var(--border); }
+.btn-small { padding:5px 12px; font-size:13px; }
+.badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12.5px; font-weight:600; border:1px solid var(--border); color:var(--sub); white-space:nowrap; }
+.badge.green { color:var(--green); border-color:var(--green); }
+.badge.amber { color:var(--navy); border-color:var(--amber); background:rgba(200,155,92,0.22); }
+.badge.red { color:#A23B3B; border-color:#A23B3B; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge.red { color:#E7A8A8; border-color:#E7A8A8; } }
+:root[data-theme="dark"] .badge.red { color:#E7A8A8; border-color:#E7A8A8; }
+td .sub { display:block; font-size:12.5px; color:var(--sub); }
+td.actions { white-space:nowrap; text-align:right; }
+.empty { text-align:center; color:var(--sub); }
+.err { color:#A23B3B; }
+.meter { height:6px; width:110px; background:var(--border); border-radius:999px; overflow:hidden; margin-top:4px; }
+.meter span { display:block; height:100%; background:var(--moss); }
+#flash .flash { padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:14px; border:1px solid var(--border); background:var(--panel); }
+#flash .flash.ok { border-color:var(--green); color:var(--green); }
+#flash .flash.err { border-color:#A23B3B; color:#A23B3B; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; justify-content:center; align-items:center; padding:16px; }
+.modal { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:26px; width:100%; max-width:460px; max-height:90vh; overflow:auto; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
+.modal.wide { max-width:640px; }
+.modal h3 { font-family:'Source Serif 4',Georgia,serif; color:var(--navy); margin:0 0 14px; font-size:20px; }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.field.full { grid-column:1 / -1; }
+.field label { display:block; font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); margin-bottom:6px; }
+.field input, .field select, .field textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; font-size:15px; }
+.field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:var(--moss); }
+.field .hint { font-size:12.5px; color:var(--sub); margin:4px 0 0; }
+.form-error { display:none; background:#FBEAEA; border:1px solid #E3B8B8; color:#A23B3B; font-size:13.5px; padding:10px 12px; border-radius:8px; margin-bottom:14px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .form-error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; } }
+:root[data-theme="dark"] .form-error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+.detail-grid { display:grid; grid-template-columns:120px 1fr; gap:8px 14px; font-size:14.5px; margin:0 0 16px; }
+.detail-grid dt { color:var(--label); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.03em; padding-top:2px; }
+.detail-grid dd { margin:0; overflow-wrap:anywhere; }
+.msg-box { white-space:pre-wrap; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; max-height:200px; overflow:auto; font-size:14.5px; }
+.counts { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; font-size:14px; color:var(--sub); }
+@media (max-width:600px) { .form-grid { grid-template-columns:1fr; } .detail-grid { grid-template-columns:1fr; gap:2px 0; } .detail-grid dd { margin-bottom:8px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="AdminHome.html">br<span class="ai">AI</span>ght <span style="font-size:14px; font-weight:normal; color:var(--sub); margin-left:8px;">| Admin Portal</span></a>
+    <div class="user-info">
+      <span id="admin-welcome">Welcome, Admin</span>
+      <button class="logout-btn" id="logout-btn">Log Out</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="sidebar" id="admin-nav" aria-label="Admin navigation"></aside>
+
+      <section id="page-content">
+        <h1>Applications</h1>
+        <p class="lede">Freshers applications, school enquiries and messages from the Apply page.</p>
+        <div id="flash" role="status" aria-live="polite"></div>
+
+        <div class="toolbar">
+          <div class="left">
+            <label for="f-status">Status</label>
+            <select id="f-status">
+              <option value="">All statuses</option>
+              <option value="new">New</option><option value="contacted">Contacted</option>
+              <option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="closed">Closed</option>
+            </select>
+            <label for="f-kind">Type</label>
+            <select id="f-kind">
+              <option value="">All types</option>
+              <option value="jobseeker">Freshers application</option>
+              <option value="school">School enquiry</option>
+              <option value="contact">General message</option>
+            </select>
+          </div>
+        </div>
+        <div class="counts" id="counts"></div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr><th>Received</th><th>Type</th><th>Name</th><th>Contact</th><th>Organization</th><th>Message</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody id="tbody"><tr><td colspan="8" class="empty">Loading applications...</td></tr></tbody>
+          </table>
+        </div>
+
+        <div class="modal-overlay" id="m-app">
+          <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="m-app-title">
+            <h3 id="m-app-title">Application</h3>
+            <div class="form-error" id="a-error" role="alert"></div>
+            <dl class="detail-grid" id="a-details"></dl>
+            <div class="form-grid">
+              <div class="field"><label for="a-status">Status</label>
+                <select id="a-status">
+                  <option value="new">New</option><option value="contacted">Contacted</option>
+                  <option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="closed">Closed</option>
+                </select></div>
+              <div class="field full"><label for="a-notes">Your notes (private)</label>
+                <textarea id="a-notes" rows="3" maxlength="5000"></textarea></div>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-ghost" id="a-cancel">Close</button>
+              <button type="button" class="btn" id="a-save">Save</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script src="admin-nav.js"></script>
+<script src="admin-session.js"></script>
+<script>
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+function dash(v) { return (v === null || v === undefined || v === '') ? '<span class="dim">&mdash;</span>' : esc(v); }
+function cap(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+function fmtDate(d) {
+  if (!d) return '<span class="dim">&mdash;</span>';
+  const p = String(d).split('T')[0].split('-');
+  const dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  return isNaN(dt) ? esc(d) : esc(dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }));
+}
+function fmtDateTime(d) {
+  if (!d) return '<span class="dim">&mdash;</span>';
+  const dt = new Date(d);
+  return isNaN(dt) ? esc(d) : esc(dt.toLocaleString());
+}
+function badge(text, cls) { return '<span class="badge ' + (cls || 'gray') + '">' + esc(cap(text)) + '</span>'; }
+function normType(t) { return String(t || '').toLowerCase().replace(/\s+/g, ''); }
+function val(id) { return document.getElementById(id).value.trim(); }
+function show(id) { document.getElementById(id).style.display = 'flex'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function setError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+let flashTimer = null;
+function flash(msg, kind) {
+  const box = document.getElementById('flash');
+  box.innerHTML = '<div class="flash ' + (kind || 'ok') + '">' + esc(msg) + '</div>';
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(function () { box.innerHTML = ''; }, 5000);
+}
+// Calls the backend with the admin session; returns null if the session has ended.
+async function api(path, method, body) {
+  const opts = { method: method || 'GET' };
+  if (body !== undefined) { opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(body); }
+  let res;
+  try { res = await AdminSession.apiFetch(path, opts); }
+  catch (e) {
+    if (AdminSession.isEnded()) return null;
+    return { ok: false, status: 0, data: { error: 'Could not connect to the server.' } };
+  }
+  if (AdminSession.isEnded()) return null;
+  let data = {};
+  try { data = await res.json(); } catch (e) { /* no JSON body */ }
+  return { ok: res.ok, status: res.status, data: data };
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(function (o) { o.style.display = 'none'; });
+});
+document.addEventListener('click', function (e) {
+  if (e.target.classList && e.target.classList.contains('modal-overlay')) e.target.style.display = 'none';
+});
+
+
+let apps = [];
+let current = null;
+const APP_CLS = { new: 'amber', contacted: 'gray', accepted: 'green', rejected: 'red', closed: 'gray' };
+const KINDS = { jobseeker: 'Freshers application', school: 'School enquiry', contact: 'General message' };
+const STATUS_ORDER = ['new', 'contacted', 'accepted', 'rejected', 'closed'];
+
+function setBody(msg, isError) {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty' + (isError ? ' err' : '') + '">' + esc(msg) + '</td></tr>';
+}
+
+function pageInit() {
+  document.getElementById('f-status').addEventListener('change', load);
+  document.getElementById('f-kind').addEventListener('change', load);
+  document.getElementById('a-cancel').addEventListener('click', function () { hide('m-app'); });
+  document.getElementById('a-save').addEventListener('click', save);
+  document.getElementById('tbody').addEventListener('click', function (e) {
+    const b = e.target.closest('button[data-open]');
+    if (!b) return;
+    openApp(apps.find(function (a) { return String(a.id) === b.dataset.open; }));
+  });
+  load();
+}
+
+async function load() {
+  const q = new URLSearchParams();
+  if (val('f-status')) q.set('status', val('f-status'));
+  if (val('f-kind')) q.set('kind', val('f-kind'));
+  const r = await api('/api/admin/applications' + (q.toString() ? '?' + q.toString() : ''));
+  if (!r) return;
+  if (!r.ok) { setBody(r.data.error || 'Failed to load applications.', true); return; }
+  apps = r.data.applications || [];
+  const counts = r.data.counts || {};
+  document.getElementById('counts').innerHTML = STATUS_ORDER.filter(function (s) { return counts[s]; }).map(function (s) {
+    return badge(s + ': ' + counts[s], APP_CLS[s]);
+  }).join(' ') || 'No applications yet.';
+  if (!apps.length) { setBody('No applications match these filters.'); return; }
+  document.getElementById('tbody').innerHTML = apps.map(function (a) {
+    const preview = a.message ? (a.message.length > 80 ? a.message.slice(0, 80) + '…' : a.message) : '';
+    return '<tr>' +
+      '<td>' + fmtDateTime(a.created_at) + '</td>' +
+      '<td>' + esc(KINDS[a.kind] || a.kind) + '</td>' +
+      '<td><strong>' + esc(a.full_name) + '</strong></td>' +
+      '<td><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' + (a.phone ? '<span class="sub">' + esc(a.phone) + '</span>' : '') + '</td>' +
+      '<td>' + dash(a.organization) + (a.city ? '<span class="sub">' + esc(a.city) + '</span>' : '') + '</td>' +
+      '<td>' + dash(preview) + '</td>' +
+      '<td>' + badge(a.status, APP_CLS[a.status]) + '</td>' +
+      '<td class="actions"><button type="button" class="btn btn-ghost btn-small" data-open="' + esc(a.id) + '">View</button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function openApp(a) {
+  if (!a) return;
+  current = a;
+  setError('a-error', '');
+  document.getElementById('m-app-title').textContent = a.full_name;
+  document.getElementById('a-details').innerHTML =
+    '<dt>Type</dt><dd>' + esc(KINDS[a.kind] || a.kind) + '</dd>' +
+    '<dt>Received</dt><dd>' + fmtDateTime(a.created_at) + '</dd>' +
+    '<dt>Email</dt><dd><a href="mailto:' + esc(a.email) + '?subject=' + encodeURIComponent('Your brAIght enquiry') + '">' + esc(a.email) + '</a></dd>' +
+    '<dt>Phone</dt><dd>' + dash(a.phone) + '</dd>' +
+    '<dt>Organization</dt><dd>' + dash(a.organization) + '</dd>' +
+    '<dt>City</dt><dd>' + dash(a.city) + '</dd>' +
+    '<dt>Cohort</dt><dd>' + dash(a.cohort_name) + '</dd>' +
+    '<dt>Message</dt><dd>' + (a.message ? '<div class="msg-box">' + esc(a.message) + '</div>' : '<span class="dim">&mdash;</span>') + '</dd>';
+  document.getElementById('a-status').value = a.status;
+  document.getElementById('a-notes').value = a.admin_notes || '';
+  show('m-app');
+}
+
+async function save() {
+  setError('a-error', '');
+  const btn = document.getElementById('a-save');
+  btn.disabled = true;
+  const r = await api('/api/admin/applications/' + encodeURIComponent(current.id), 'PUT', { status: val('a-status'), admin_notes: val('a-notes') });
+  btn.disabled = false;
+  if (!r) return;
+  if (!r.ok) { setError('a-error', r.data.error || 'Could not save.'); return; }
+  hide('m-app');
+  flash(r.data.message || 'Saved.', 'ok');
+  load();
+}
+
+
+const admin = AdminSession.init({
+  // Called when the session times out or is rejected by the server: wipe what's on screen.
+  onSessionEnd: function () { document.getElementById('page-content').innerHTML = '<p class="lede">Session ended.</p>'; }
+});
+if (admin) {
+  document.getElementById('admin-welcome').textContent = 'Welcome, ' + (admin.firstName || admin.username);
+  document.getElementById('logout-btn').addEventListener('click', function () { AdminSession.logout(); });
+  pageInit();
+}
+
+</script>
+</body>
+</html>

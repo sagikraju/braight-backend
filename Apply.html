@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Apply or enquire — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; }
+nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+nav a.on { color:var(--navy); border-bottom-color:var(--amber); }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(28px,4.4vw,38px); line-height:1.15; }
+.lede { font-size:clamp(15px,1.8vw,17px); color:var(--sub); margin:12px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+
+.auth-wrap { padding:64px 0 80px; display:flex; justify-content:center; }
+.auth-card { width:100%; max-width:420px; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:36px 32px; }
+.auth-head { text-align:center; margin-bottom:28px; }
+
+.form-group { margin-bottom:18px; }
+.form-group label { display:block; font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); margin-bottom:6px; }
+.form-group input, .form-group select {
+  width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg); color:var(--text); font-family:'Source Sans 3',Arial,sans-serif; font-size:15px;
+}
+.form-group input:focus, .form-group select:focus { outline:none; border-color:var(--moss); }
+
+.btn { display:inline-block; background:var(--amber); color:#17324F; font-weight:700; text-decoration:none; padding:12px 22px; border-radius:8px; font-family:inherit; font-size:15px; border:none; cursor:pointer; }
+.btn-block { display:block; width:100%; text-align:center; }
+
+.auth-switch { text-align:center; margin-top:20px; font-size:14px; color:var(--sub); }
+.auth-switch a { color:var(--navy); font-weight:600; border-bottom:2px solid var(--amber); text-decoration:none; }
+
+.auth-forgot { text-align:center; margin-top:12px; }
+.auth-forgot a { font-family:'Source Serif 4',Georgia,serif; font-weight:600; font-size:14px; color:#0B2E6F; text-decoration:none; border-bottom:1px solid currentColor; }
+.auth-forgot a:hover { opacity:0.8; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .auth-forgot a { color:#9DBDF5; }
+}
+:root[data-theme="dark"] .auth-forgot a { color:#9DBDF5; }
+
+.form-error { display:none; background:#FBEAEA; border:1px solid #E3B8B8; color:#A23B3B; font-size:13.5px; padding:10px 12px; border-radius:8px; margin-bottom:16px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .form-error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+}
+:root[data-theme="dark"] .form-error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+.btn[disabled] { opacity:0.6; cursor:default; }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+
+.apply-card { max-width:640px; }
+.form-group textarea { width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-family:'Source Sans 3',Arial,sans-serif; font-size:15px; resize:vertical; }
+.form-group textarea:focus { outline:none; border-color:var(--moss); }
+.form-group .hint { font-size:13px; color:var(--sub); margin:6px 0 0; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.consent { display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--text); margin:6px 0 20px; cursor:pointer; }
+.consent input { margin-top:4px; width:16px; height:16px; accent-color:var(--moss); flex-shrink:0; }
+.hp { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+.privacy { font-size:13px; color:var(--sub); margin:18px 0 0; text-align:center; }
+.done { text-align:center; padding:8px 0 4px; }
+.done h2 { font-size:24px; margin-bottom:10px; }
+.done p { color:var(--sub); margin:0 0 18px; }
+@media (max-width:560px) { .row2 { grid-template-columns:1fr; gap:0; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <nav>
+      <a href="index.html#/schools">Schools &amp; Students</a>
+      <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
+      <a href="SDG.html">SDG Goals</a>
+      <a href="sdg-dashboard.html">SDG Dashboard</a>
+      <a href="insights.html">Data Insights</a>
+      <a href="Login.html">Login</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="auth-wrap">
+      <div class="auth-card apply-card">
+        <div class="auth-head">
+          <div class="kicker">Get in touch</div>
+          <h1>Apply or enquire</h1>
+          <p class="lede">Tell us a little about yourself and we will get back to you.</p>
+        </div>
+
+        <div class="done" id="done" hidden>
+          <h2>Thank you</h2>
+          <p id="done-msg">We have received your message and will get back to you soon.</p>
+          <a class="btn" href="index.html">Back to the home page</a>
+        </div>
+
+        <form id="apply-form" novalidate>
+          <div id="form-error" class="form-error" role="alert"></div>
+
+          <div class="form-group">
+            <label for="kind">I am</label>
+            <select id="kind" name="kind">
+              <option value="jobseeker">A fresher or job seeker, applying to join the program</option>
+              <option value="school">A school (principal or teacher) interested in the student program</option>
+              <option value="contact">Something else (a general message)</option>
+            </select>
+            <p class="hint" id="kind-hint"></p>
+          </div>
+
+          <div class="form-group">
+            <label for="full_name">Full name</label>
+            <input type="text" id="full_name" name="full_name" autocomplete="name" maxlength="200">
+          </div>
+
+          <div class="row2">
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" autocomplete="email" maxlength="320">
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone (optional)</label>
+              <input type="tel" id="phone" name="phone" autocomplete="tel" maxlength="40">
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="form-group">
+              <label for="organization" id="org-label">College or company (optional)</label>
+              <input type="text" id="organization" name="organization" maxlength="200">
+            </div>
+            <div class="form-group">
+              <label for="city">City (optional)</label>
+              <input type="text" id="city" name="city" autocomplete="address-level2" maxlength="100">
+            </div>
+          </div>
+
+          <div class="form-group" id="cohort-group" hidden>
+            <label for="cohort_id">Cohort</label>
+            <select id="cohort_id" name="cohort_id"><option value="">No preference</option></select>
+          </div>
+
+          <div class="form-group">
+            <label for="message" id="msg-label">Message (optional)</label>
+            <textarea id="message" name="message" rows="5" maxlength="5000"></textarea>
+          </div>
+
+          <!-- Spam trap: real visitors never see or fill this in -->
+          <div class="hp" aria-hidden="true">
+            <label for="website">Leave this field empty</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+
+          <label class="consent">
+            <input type="checkbox" id="consent" name="consent">
+            <span>I agree that brAIght may contact me about its programs using the details above.</span>
+          </label>
+
+          <button type="submit" class="btn btn-block" id="submit">Send</button>
+        </form>
+
+        <p class="privacy">Students join through their school. If you are a student, please ask your teacher or principal to contact us using this form.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script>
+const API_BASE = "https://braight-backend.onrender.com";
+
+const KIND_TEXT = {
+  jobseeker: { org: 'College or company (optional)', msg: 'Message (optional)', hint: 'Tell us what you would like to build and any experience you have. No prior AI experience is needed.' },
+  school:    { org: 'School name', msg: 'Message (optional)', hint: 'Tell us your school, the grades involved and when you would like to begin.' },
+  contact:   { org: 'Organization (optional)', msg: 'Message', hint: '' }
+};
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+const form = document.getElementById('apply-form');
+const errorBox = document.getElementById('form-error');
+const submitBtn = document.getElementById('submit');
+const kindSel = document.getElementById('kind');
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = msg ? 'block' : 'none';
+  if (msg) errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function applyKind() {
+  const t = KIND_TEXT[kindSel.value];
+  document.getElementById('org-label').textContent = t.org;
+  document.getElementById('msg-label').textContent = t.msg;
+  document.getElementById('kind-hint').textContent = t.hint;
+  const cohortGroup = document.getElementById('cohort-group');
+  const hasCohorts = document.getElementById('cohort_id').options.length > 1;
+  cohortGroup.hidden = !(kindSel.value === 'jobseeker' && hasCohorts);
+}
+kindSel.addEventListener('change', applyKind);
+
+// Open freshers cohorts (if any) so people can say which one they want.
+async function loadCohorts() {
+  try {
+    const res = await fetch(API_BASE + '/api/public/cohorts');
+    if (!res.ok) return;
+    const data = await res.json();
+    const sel = document.getElementById('cohort_id');
+    (data.cohorts || []).forEach(function (c) {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;     // textContent: never interpreted as HTML
+      sel.appendChild(opt);
+    });
+  } catch (err) { /* the form still works without the list */ }
+  applyKind();
+}
+
+form.addEventListener('submit', async function (e) {
+  e.preventDefault();
+  showError('');
+  const kind = kindSel.value;
+  const payload = {
+    kind: kind,
+    full_name: document.getElementById('full_name').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    organization: document.getElementById('organization').value.trim(),
+    city: document.getElementById('city').value.trim(),
+    message: document.getElementById('message').value.trim(),
+    cohort_id: kind === 'jobseeker' ? (document.getElementById('cohort_id').value || null) : null,
+    website: document.getElementById('website').value,
+    consent: document.getElementById('consent').checked
+  };
+
+  if (!payload.full_name) return showError('Please enter your name.');
+  if (!EMAIL_RE.test(payload.email)) return showError('Please enter a valid email address.');
+  if (kind === 'school' && !payload.organization) return showError('Please enter your school name.');
+  if (kind === 'contact' && !payload.message) return showError('Please write a message.');
+  if (!payload.consent) return showError('Please tick the box to agree to be contacted.');
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending…';
+  try {
+    const res = await fetch(API_BASE + '/api/applications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    let data = {};
+    try { data = await res.json(); } catch (err) { /* no JSON body */ }
+    if (!res.ok) {
+      showError(data.error || 'Something went wrong. Please try again.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send';
+      return;
+    }
+    form.hidden = true;
+    document.getElementById('done-msg').textContent = data.message || 'We have received your message and will get back to you soon.';
+    document.getElementById('done').hidden = false;
+    document.querySelector('.privacy').hidden = true;
+  } catch (err) {
+    showError('Could not reach the server. Please try again in a moment.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send';
+  }
+});
+
+applyKind();
+loadCohorts();
+</script>
+</body>
+</html>
