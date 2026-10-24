@@ -22,9 +22,11 @@ Run locally: python app.py
 Render start command: gunicorn app:app
 """
 
+import datetime
 import hashlib
 import logging
 import os
+import re
 import secrets
 from functools import wraps
 
@@ -39,6 +41,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("braight-backend")
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 256 * 1024   # reject oversized request bodies
 
 _origins_env = os.environ.get(
     "ALLOWED_ORIGINS",
@@ -479,6 +482,646 @@ def admin_update_status(username):
     except Exception:
         logger.exception("admin_update_status failed")
         return jsonify({"error": "Could not update user status."}), 500
+
+
+# ==========================================================================
+# Program tables: cohorts, enrollments, progress, applications
+# (tables are created by 001_program_tables.sql)
+# ==========================================================================
+
+COHORT_PROGRAMS = {"student", "jobseeker"}
+COHORT_STATUSES = {"planned", "open", "running", "completed", "cancelled"}
+ENROLLMENT_STATUSES = {"applied", "accepted", "active", "completed", "dropped", "rejected"}
+APPLICATION_KINDS = {"jobseeker", "school", "contact"}
+APPLICATION_STATUSES = {"new", "contacted", "accepted", "rejected", "closed"}
+
+APPLICATIONS_MAX_PER_EMAIL_PER_HOUR = 3
+APPLICATIONS_MAX_PER_HOUR = 100          # overall flood protection for the public form
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_PROGRESS_KEY_RE = re.compile(r"^(milestone|session):([0-9]{1,2})$")
+
+
+class InputError(ValueError):
+    """A problem with the data the client sent (returned as HTTP 400)."""
+
+
+def _bad_request(exc):
+    return jsonify({"error": str(exc)}), 400
+
+
+def _text(data, key, max_len, required=False, label=None):
+    label = label or key
+    value = data.get(key)
+    if value is None:
+        value = ""
+    if not isinstance(value, str):
+        raise InputError(f"{label} must be text.")
+    value = value.strip()
+    if not value:
+        if required:
+            raise InputError(f"{label} is required.")
+        return None
+    if len(value) > max_len:
+        raise InputError(f"{label} must be at most {max_len} characters.")
+    return value
+
+
+def _choice(data, key, allowed, default=None, label=None):
+    label = label or key
+    value = data.get(key)
+    if value is None or value == "":
+        if default is not None:
+            return default
+        raise InputError(f"{label} is required.")
+    value = str(value).strip().lower()
+    if value not in allowed:
+        raise InputError(f"{label} must be one of: {', '.join(sorted(allowed))}.")
+    return value
+
+
+def _date(data, key, label=None):
+    label = label or key
+    value = data.get(key)
+    if value in (None, ""):
+        return None
+    try:
+        return datetime.date.fromisoformat(str(value).strip())
+    except ValueError:
+        raise InputError(f"{label} must be a date (YYYY-MM-DD).")
+
+
+def _whole_number(value, label, minimum=1, maximum=None):
+    if isinstance(value, bool):
+        raise InputError(f"{label} must be a whole number.")
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise InputError(f"{label} must be a whole number.")
+    if number < minimum or (maximum is not None and number > maximum):
+        limit = f"between {minimum} and {maximum}" if maximum is not None else f"at least {minimum}"
+        raise InputError(f"{label} must be {limit}.")
+    return number
+
+
+def _optional_int_arg(name):
+    raw = request.args.get(name)
+    if raw in (None, ""):
+        return None
+    return _whole_number(raw, name, minimum=1)
+
+
+def _optional_choice_arg(name, allowed):
+    raw = (request.args.get(name) or "").strip().lower()
+    if not raw:
+        return None
+    if raw not in allowed:
+        raise InputError(f"{name} must be one of: {', '.join(sorted(allowed))}.")
+    return raw
+
+
+def _iso(value):
+    return value.isoformat() if value is not None else None
+
+
+def _normalize_type(user_type):
+    return (user_type or "").strip().lower().replace(" ", "")
+
+
+def _claim_progress(cur, user_id, cohort_id):
+    """Attach ticks saved before enrollment (no cohort) to the cohort the user has just joined."""
+    cur.execute(
+        """
+        UPDATE progress SET cohort_id = %s
+        WHERE user_id = %s AND cohort_id IS NULL
+          AND NOT EXISTS (
+                SELECT 1 FROM progress p2
+                WHERE p2.user_id = progress.user_id
+                  AND p2.cohort_id = %s
+                  AND p2.item_key = progress.item_key)
+        """,
+        (cohort_id, user_id, cohort_id),
+    )
+
+
+def _current_cohort(cur, user_id):
+    """The cohort a user is currently in (accepted or active), newest first, or None."""
+    cur.execute(
+        """
+        SELECT c.id, c.name, c.program, c.status
+        FROM enrollments e
+        JOIN cohorts c ON c.id = e.cohort_id
+        WHERE e.user_id = %s AND e.status IN ('accepted', 'active')
+        ORDER BY e.created_at DESC, e.id DESC
+        LIMIT 1
+        """,
+        (user_id,),
+    )
+    return cur.fetchone()
+
+
+# ---------------------------------------------------------------- cohorts --
+
+def _cohort_fields(data):
+    program = _choice(data, "program", COHORT_PROGRAMS, label="Program")
+    name = _text(data, "name", 150, required=True, label="Name")
+    school = _text(data, "school", 200, label="School")
+    start_date = _date(data, "start_date", "Start date")
+    end_date = _date(data, "end_date", "End date")
+    if start_date and end_date and end_date < start_date:
+        raise InputError("End date can't be before the start date.")
+    sessions_total = _whole_number(data.get("sessions_total", 8), "Sessions", minimum=1, maximum=52)
+    status = _choice(data, "status", COHORT_STATUSES, default="planned", label="Status")
+    notes = _text(data, "notes", 2000, label="Notes")
+    return program, name, school, start_date, end_date, sessions_total, status, notes
+
+
+@app.route("/api/admin/cohorts", methods=["GET"])
+@require_admin
+def admin_list_cohorts():
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT c.id, c.program, c.name, c.school, c.start_date, c.end_date,
+                       c.sessions_total, c.status, c.notes,
+                       COUNT(e.id) AS enrollment_count
+                FROM cohorts c
+                LEFT JOIN enrollments e ON e.cohort_id = c.id
+                GROUP BY c.id
+                ORDER BY c.created_at DESC, c.id DESC
+                """
+            )
+            cohorts = cur.fetchall()
+        for c in cohorts:
+            c["start_date"] = _iso(c["start_date"])
+            c["end_date"] = _iso(c["end_date"])
+        return jsonify({"cohorts": cohorts}), 200
+    except Exception:
+        logger.exception("admin_list_cohorts failed")
+        return jsonify({"error": "Could not retrieve cohorts."}), 500
+
+
+@app.route("/api/admin/cohorts", methods=["POST"])
+@require_admin
+def admin_create_cohort():
+    data = request.get_json(silent=True) or {}
+    try:
+        fields = _cohort_fields(data)
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO cohorts
+                    (program, name, school, start_date, end_date, sessions_total, status, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                fields,
+            )
+            new_id = cur.fetchone()[0]
+        return jsonify({"id": new_id, "message": "Cohort created."}), 201
+    except pg_errors.UniqueViolation:
+        return jsonify({"error": "A cohort with this program, name and school already exists."}), 409
+    except Exception:
+        logger.exception("admin_create_cohort failed")
+        return jsonify({"error": "Could not create the cohort."}), 500
+
+
+@app.route("/api/admin/cohorts/<int:cohort_id>", methods=["PUT"])
+@require_admin
+def admin_update_cohort(cohort_id):
+    data = request.get_json(silent=True) or {}
+    try:
+        fields = _cohort_fields(data)
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT program FROM cohorts WHERE id = %s FOR UPDATE", (cohort_id,))
+            row = cur.fetchone()
+            if row is None:
+                return jsonify({"error": "Cohort not found."}), 404
+            if row[0] != fields[0]:
+                cur.execute("SELECT COUNT(*) FROM enrollments WHERE cohort_id = %s", (cohort_id,))
+                if cur.fetchone()[0] > 0:
+                    return jsonify({"error": "The program can't be changed once users are enrolled."}), 409
+            cur.execute(
+                """
+                UPDATE cohorts
+                SET program = %s, name = %s, school = %s, start_date = %s, end_date = %s,
+                    sessions_total = %s, status = %s, notes = %s
+                WHERE id = %s
+                """,
+                (*fields, cohort_id),
+            )
+        return jsonify({"message": "Cohort updated."}), 200
+    except pg_errors.UniqueViolation:
+        return jsonify({"error": "A cohort with this program, name and school already exists."}), 409
+    except Exception:
+        logger.exception("admin_update_cohort failed")
+        return jsonify({"error": "Could not update the cohort."}), 500
+
+
+# ------------------------------------------------------------ enrollments --
+
+@app.route("/api/admin/enrollments", methods=["GET"])
+@require_admin
+def admin_list_enrollments():
+    try:
+        cohort_id = _optional_int_arg("cohort_id")
+        status = _optional_choice_arg("status", ENROLLMENT_STATUSES)
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT e.id, e.status, e.notes, e.created_at,
+                       u.username, u.first_name, u.last_name, u.user_type,
+                       c.id AS cohort_id, c.name AS cohort_name, c.program
+                FROM enrollments e
+                JOIN users u ON u.id = e.user_id
+                JOIN cohorts c ON c.id = e.cohort_id
+                WHERE (%s::bigint IS NULL OR e.cohort_id = %s::bigint)
+                  AND (%s::text IS NULL OR e.status = %s::text)
+                ORDER BY e.created_at DESC, e.id DESC
+                LIMIT 1000
+                """,
+                (cohort_id, cohort_id, status, status),
+            )
+            rows = cur.fetchall()
+        for r in rows:
+            r["created_at"] = _iso(r["created_at"])
+        return jsonify({"enrollments": rows}), 200
+    except Exception:
+        logger.exception("admin_list_enrollments failed")
+        return jsonify({"error": "Could not retrieve enrollments."}), 500
+
+
+@app.route("/api/admin/enrollments", methods=["POST"])
+@require_admin
+def admin_create_enrollment():
+    data = request.get_json(silent=True) or {}
+    try:
+        username = _text(data, "username", 200, required=True, label="Username")
+        cohort_id = _whole_number(data.get("cohort_id"), "Cohort")
+        status = _choice(data, "status", ENROLLMENT_STATUSES, default="accepted", label="Status")
+        notes = _text(data, "notes", 2000, label="Notes")
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT id, user_type FROM users WHERE username = %s", (username,))
+            user = cur.fetchone()
+            if user is None:
+                return jsonify({"error": "User not found."}), 404
+            kind = _normalize_type(user["user_type"])
+            if kind == "admin":
+                return jsonify({"error": "Administrators can't be enrolled in a cohort."}), 400
+
+            cur.execute("SELECT id, program, status FROM cohorts WHERE id = %s", (cohort_id,))
+            cohort = cur.fetchone()
+            if cohort is None:
+                return jsonify({"error": "Cohort not found."}), 404
+            if cohort["status"] == "cancelled":
+                return jsonify({"error": "This cohort is cancelled."}), 400
+            if kind != cohort["program"]:
+                return jsonify({"error": f"This user is a {user['user_type']} and can't join a {cohort['program']} cohort."}), 400
+
+            cur.execute(
+                """
+                INSERT INTO enrollments (user_id, cohort_id, status, notes)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (user["id"], cohort_id, status, notes),
+            )
+            new_id = cur.fetchone()["id"]
+            if status in ("accepted", "active"):
+                _claim_progress(cur, user["id"], cohort_id)
+        return jsonify({"id": new_id, "message": "User enrolled."}), 201
+    except pg_errors.UniqueViolation:
+        return jsonify({"error": "This user is already enrolled in that cohort."}), 409
+    except Exception:
+        logger.exception("admin_create_enrollment failed")
+        return jsonify({"error": "Could not enroll the user."}), 500
+
+
+@app.route("/api/admin/enrollments/<int:enrollment_id>", methods=["PUT"])
+@require_admin
+def admin_update_enrollment(enrollment_id):
+    data = request.get_json(silent=True) or {}
+    try:
+        status = _choice(data, "status", ENROLLMENT_STATUSES, label="Status")
+        notes = _text(data, "notes", 2000, label="Notes")
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE enrollments SET status = %s, notes = %s
+                WHERE id = %s
+                RETURNING user_id, cohort_id
+                """,
+                (status, notes, enrollment_id),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return jsonify({"error": "Enrollment not found."}), 404
+            if status in ("accepted", "active"):
+                _claim_progress(cur, row[0], row[1])
+        return jsonify({"message": "Enrollment updated."}), 200
+    except Exception:
+        logger.exception("admin_update_enrollment failed")
+        return jsonify({"error": "Could not update the enrollment."}), 500
+
+
+# --------------------------------------------------------------- progress --
+
+@app.route("/api/progress", methods=["GET"])
+@require_session
+def get_my_progress():
+    """The logged-in user's own ticks (for their current cohort, or none)."""
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT id FROM users WHERE username = %s", (g.session_username,))
+            user = cur.fetchone()
+            if user is None:
+                return jsonify({"error": "User not found."}), 404
+            cohort = _current_cohort(cur, user["id"])
+            cohort_id = cohort["id"] if cohort else None
+            cur.execute(
+                """
+                SELECT item_key FROM progress
+                WHERE user_id = %s AND COALESCE(cohort_id, 0) = COALESCE(%s::bigint, 0)
+                """,
+                (user["id"], cohort_id),
+            )
+            items = [r["item_key"] for r in cur.fetchall()]
+        cohort_out = None
+        if cohort:
+            cohort_out = {"name": cohort["name"], "program": cohort["program"], "status": cohort["status"]}
+        return jsonify({"items": items, "cohort": cohort_out}), 200
+    except Exception:
+        logger.exception("get_my_progress failed")
+        return jsonify({"error": "Could not load your progress."}), 500
+
+
+@app.route("/api/progress", methods=["PUT"])
+@require_session
+def set_my_progress():
+    """Tick or un-tick one item for the logged-in user."""
+    data = request.get_json(silent=True) or {}
+    item_key = str(data.get("item_key") or "").strip()
+    done = data.get("done")
+    match = _PROGRESS_KEY_RE.match(item_key)
+    if not match or not isinstance(done, bool):
+        return jsonify({"error": "item_key and done are required."}), 400
+    number = int(match.group(2))
+    limit = 20 if match.group(1) == "milestone" else 52
+    if number < 1 or number > limit:
+        return jsonify({"error": "Unknown item."}), 400
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT id FROM users WHERE username = %s", (g.session_username,))
+            user = cur.fetchone()
+            if user is None:
+                return jsonify({"error": "User not found."}), 404
+            cohort = _current_cohort(cur, user["id"])
+            cohort_id = cohort["id"] if cohort else None
+            if done:
+                cur.execute(
+                    """
+                    INSERT INTO progress (user_id, cohort_id, item_key)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                    """,
+                    (user["id"], cohort_id, item_key),
+                )
+            else:
+                cur.execute(
+                    """
+                    DELETE FROM progress
+                    WHERE user_id = %s AND COALESCE(cohort_id, 0) = COALESCE(%s::bigint, 0)
+                      AND item_key = %s
+                    """,
+                    (user["id"], cohort_id, item_key),
+                )
+        return jsonify({"ok": True}), 200
+    except Exception:
+        logger.exception("set_my_progress failed")
+        return jsonify({"error": "Could not save your progress."}), 500
+
+
+@app.route("/api/admin/progress", methods=["GET"])
+@require_admin
+def admin_progress_overview():
+    """
+    Completion per user for one cohort (?cohort_id=12) or for users who have
+    ticks but no cohort (?cohort_id=none).
+    """
+    raw = (request.args.get("cohort_id") or "").strip().lower()
+    try:
+        cohort_id = None if raw == "none" else _whole_number(raw, "cohort_id")
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cohort = None
+            if cohort_id is None:
+                cur.execute(
+                    """
+                    SELECT u.username, u.first_name, u.last_name, u.user_type,
+                           NULL::text AS enrollment_status,
+                           COUNT(p.id) FILTER (WHERE split_part(p.item_key, ':', 1) = 'milestone') AS milestones_done,
+                           COUNT(p.id) FILTER (WHERE split_part(p.item_key, ':', 1) = 'session') AS sessions_done,
+                           MAX(p.completed_at) AS last_activity
+                    FROM progress p
+                    JOIN users u ON u.id = p.user_id
+                    WHERE p.cohort_id IS NULL
+                    GROUP BY u.id, u.username, u.first_name, u.last_name, u.user_type
+                    ORDER BY u.first_name, u.last_name, u.username
+                    """
+                )
+            else:
+                cur.execute(
+                    "SELECT id, name, program, sessions_total, status FROM cohorts WHERE id = %s",
+                    (cohort_id,),
+                )
+                cohort = cur.fetchone()
+                if cohort is None:
+                    return jsonify({"error": "Cohort not found."}), 404
+                cur.execute(
+                    """
+                    SELECT u.username, u.first_name, u.last_name, u.user_type,
+                           en.status AS enrollment_status,
+                           COUNT(p.id) FILTER (WHERE split_part(p.item_key, ':', 1) = 'milestone') AS milestones_done,
+                           COUNT(p.id) FILTER (WHERE split_part(p.item_key, ':', 1) = 'session') AS sessions_done,
+                           MAX(p.completed_at) AS last_activity
+                    FROM enrollments en
+                    JOIN users u ON u.id = en.user_id
+                    LEFT JOIN progress p ON p.user_id = en.user_id AND p.cohort_id = en.cohort_id
+                    WHERE en.cohort_id = %s AND en.status IN ('accepted', 'active', 'completed')
+                    GROUP BY u.id, u.username, u.first_name, u.last_name, u.user_type, en.status
+                    ORDER BY u.first_name, u.last_name, u.username
+                    """,
+                    (cohort_id,),
+                )
+            rows = cur.fetchall()
+        for r in rows:
+            r["last_activity"] = _iso(r["last_activity"])
+        return jsonify({"cohort": cohort, "rows": rows}), 200
+    except Exception:
+        logger.exception("admin_progress_overview failed")
+        return jsonify({"error": "Could not retrieve progress."}), 500
+
+
+# ----------------------------------------------------------- applications --
+
+@app.route("/api/public/cohorts", methods=["GET"])
+def public_open_cohorts():
+    """Jobseeker cohorts that are open for applications (no login needed; no personal data)."""
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT id, name, start_date
+                FROM cohorts
+                WHERE program = 'jobseeker' AND status = 'open'
+                ORDER BY start_date NULLS LAST, id
+                """
+            )
+            cohorts = cur.fetchall()
+        for c in cohorts:
+            c["start_date"] = _iso(c["start_date"])
+        return jsonify({"cohorts": cohorts}), 200
+    except Exception:
+        logger.exception("public_open_cohorts failed")
+        return jsonify({"error": "Could not retrieve cohorts."}), 500
+
+
+@app.route("/api/applications", methods=["POST"])
+def submit_application():
+    """Public form: freshers application, school enquiry or general message."""
+    data = request.get_json(silent=True) or {}
+
+    # Spam trap: a hidden field that real visitors never fill in. Pretend it worked.
+    if str(data.get("website") or "").strip():
+        return jsonify({"message": "Thank you. We have received your message."}), 201
+
+    try:
+        kind = _choice(data, "kind", APPLICATION_KINDS, label="Type")
+        full_name = _text(data, "full_name", 200, required=True, label="Name")
+        email = _text(data, "email", 320, required=True, label="Email")
+        if not _EMAIL_RE.match(email):
+            raise InputError("Please enter a valid email address.")
+        phone = _text(data, "phone", 40, label="Phone")
+        organization = _text(data, "organization", 200, required=(kind == "school"),
+                             label="School name" if kind == "school" else "Organization")
+        city = _text(data, "city", 100, label="City")
+        message = _text(data, "message", 5000, required=(kind == "contact"), label="Message")
+        if data.get("consent") is not True:
+            raise InputError("Please tick the box to agree to be contacted.")
+        cohort_id = None
+        if kind == "jobseeker" and data.get("cohort_id") not in (None, ""):
+            cohort_id = _whole_number(data.get("cohort_id"), "Cohort")
+    except InputError as exc:
+        return _bad_request(exc)
+
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM applications WHERE created_at > NOW() - INTERVAL '1 hour'")
+            if cur.fetchone()[0] >= APPLICATIONS_MAX_PER_HOUR:
+                return jsonify({"error": "We are receiving a lot of messages right now. Please try again later."}), 429
+            cur.execute(
+                """
+                SELECT COUNT(*) FROM applications
+                WHERE LOWER(email) = LOWER(%s) AND created_at > NOW() - INTERVAL '1 hour'
+                """,
+                (email,),
+            )
+            if cur.fetchone()[0] >= APPLICATIONS_MAX_PER_EMAIL_PER_HOUR:
+                return jsonify({"error": "You have already sent a few messages recently. Please wait a while before sending another."}), 429
+            if cohort_id is not None:
+                cur.execute(
+                    "SELECT 1 FROM cohorts WHERE id = %s AND program = 'jobseeker' AND status = 'open'",
+                    (cohort_id,),
+                )
+                if cur.fetchone() is None:
+                    return jsonify({"error": "That cohort is not open for applications."}), 400
+            cur.execute(
+                """
+                INSERT INTO applications
+                    (kind, full_name, email, phone, organization, city, message, cohort_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (kind, full_name, email, phone, organization, city, message, cohort_id),
+            )
+        return jsonify({"message": "Thank you. We have received your message and will get back to you soon."}), 201
+    except Exception:
+        logger.exception("submit_application failed")
+        return jsonify({"error": "Could not send your message. Please try again."}), 500
+
+
+@app.route("/api/admin/applications", methods=["GET"])
+@require_admin
+def admin_list_applications():
+    try:
+        status = _optional_choice_arg("status", APPLICATION_STATUSES)
+        kind = _optional_choice_arg("kind", APPLICATION_KINDS)
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT a.id, a.kind, a.full_name, a.email, a.phone, a.organization, a.city,
+                       a.message, a.status, a.admin_notes, a.created_at,
+                       a.cohort_id, c.name AS cohort_name
+                FROM applications a
+                LEFT JOIN cohorts c ON c.id = a.cohort_id
+                WHERE (%s::text IS NULL OR a.status = %s::text)
+                  AND (%s::text IS NULL OR a.kind = %s::text)
+                ORDER BY a.created_at DESC, a.id DESC
+                LIMIT 500
+                """,
+                (status, status, kind, kind),
+            )
+            rows = cur.fetchall()
+            cur.execute("SELECT status, COUNT(*) AS n FROM applications GROUP BY status")
+            counts = {r["status"]: r["n"] for r in cur.fetchall()}
+        for r in rows:
+            r["created_at"] = _iso(r["created_at"])
+        return jsonify({"applications": rows, "counts": counts}), 200
+    except Exception:
+        logger.exception("admin_list_applications failed")
+        return jsonify({"error": "Could not retrieve applications."}), 500
+
+
+@app.route("/api/admin/applications/<int:application_id>", methods=["PUT"])
+@require_admin
+def admin_update_application(application_id):
+    data = request.get_json(silent=True) or {}
+    try:
+        status = _choice(data, "status", APPLICATION_STATUSES, label="Status")
+        admin_notes = _text(data, "admin_notes", 5000, label="Notes")
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "UPDATE applications SET status = %s, admin_notes = %s WHERE id = %s",
+                (status, admin_notes, application_id),
+            )
+            if cur.rowcount == 0:
+                return jsonify({"error": "Application not found."}), 404
+        return jsonify({"message": "Application updated."}), 200
+    except Exception:
+        logger.exception("admin_update_application failed")
+        return jsonify({"error": "Could not update the application."}), 500
 
 
 @app.route("/api/change-password", methods=["POST"])
