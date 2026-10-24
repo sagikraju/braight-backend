@@ -234,6 +234,11 @@ function applyKind() {
   cohortGroup.hidden = !(kindSel.value === 'jobseeker' && hasCohorts);
 }
 kindSel.addEventListener('change', applyKind);
+// Links such as Apply.html?kind=school preselect the form type.
+try {
+  var wanted = new URLSearchParams(location.search).get('kind');
+  if (wanted && /^(jobseeker|school|contact)$/.test(wanted)) { kindSel.value = wanted; applyKind(); }
+} catch (e) { /* ignore */ }
 
 // Open freshers cohorts (if any) so people can say which one they want.
 async function loadCohorts() {
