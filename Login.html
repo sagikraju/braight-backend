@@ -76,6 +76,27 @@ h1 { font-size:clamp(28px,4.4vw,38px); line-height:1.15; }
 :root[data-theme="dark"] .form-error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
 .btn[disabled] { opacity:0.6; cursor:default; }
 
+.auth-forgot button.linkish { background:none; border:none; padding:0; cursor:pointer; font-family:'Source Serif 4',Georgia,serif; font-weight:600; font-size:14px; color:#0B2E6F; border-bottom:1px solid currentColor; }
+.auth-forgot button.linkish:hover { opacity:0.8; }
+.auth-forgot .sep { margin:0 10px; color:var(--label); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .auth-forgot button.linkish { color:#9DBDF5; }
+}
+:root[data-theme="dark"] .auth-forgot button.linkish { color:#9DBDF5; }
+
+.fp-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; justify-content:center; align-items:center; padding:16px; }
+.fp-overlay.open { display:flex; }
+.fp-modal { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:420px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
+.fp-modal h2 { font-size:21px; margin-bottom:8px; }
+.fp-modal p.sub { color:var(--sub); font-size:15px; margin:0 0 18px; }
+.fp-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:6px; }
+.btn-ghost { background:transparent; color:var(--navy); border:1px solid var(--border); }
+.form-ok { display:none; background:#EAF4EA; border:1px solid #B9D8B9; color:#2F6B34; font-size:14px; padding:12px; border-radius:8px; margin-bottom:16px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .form-ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+}
+:root[data-theme="dark"] .form-ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+
 footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
 footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
 footer b { color:var(--navy); }
@@ -124,12 +145,33 @@ footer b { color:var(--navy); }
         </div>
 
         <div class="auth-forgot">
+          <button type="button" class="linkish" id="forgot-open">Forgot Password?</button>
+          <span class="sep" aria-hidden="true">|</span>
           <a href="ResetPassword.html">Change Password</a>
         </div>
       </div>
     </div>
   </div>
 </main>
+
+<div class="fp-overlay" id="fp-overlay" role="dialog" aria-modal="true" aria-labelledby="fp-title">
+  <div class="fp-modal">
+    <h2 id="fp-title">Forgot your password?</h2>
+    <p class="sub">Enter your username. If it matches an account with an email address, we will send a link to that address to choose a new password.</p>
+    <form id="fp-form" novalidate>
+      <div id="fp-error" class="form-error" role="alert"></div>
+      <div id="fp-ok" class="form-ok" role="status"></div>
+      <div class="form-group">
+        <label for="fp-username">Username</label>
+        <input type="text" id="fp-username" name="username" autocomplete="username" maxlength="100" required>
+      </div>
+      <div class="fp-actions">
+        <button type="button" class="btn btn-ghost" id="fp-cancel">Close</button>
+        <button type="submit" class="btn" id="fp-submit">Send reset link</button>
+      </div>
+    </form>
+  </div>
+</div>
 <footer>
   <div class="wrap">
     <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
@@ -182,6 +224,92 @@ document.getElementById('login-form').addEventListener('submit', async function 
     submitBtn.textContent = 'Log In';
   }
 });
+
+/* ---------- Forgot password popup ---------- */
+(function () {
+  const overlay = document.getElementById('fp-overlay');
+  const form = document.getElementById('fp-form');
+  const input = document.getElementById('fp-username');
+  const errorBox = document.getElementById('fp-error');
+  const okBox = document.getElementById('fp-ok');
+  const submitBtn = document.getElementById('fp-submit');
+  const opener = document.getElementById('forgot-open');
+  let busy = false;
+
+  function open() {
+    errorBox.style.display = 'none';
+    okBox.style.display = 'none';
+    submitBtn.style.display = '';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send reset link';
+    // Carry over whatever was already typed on the login form.
+    input.value = document.getElementById('username').value.trim();
+    overlay.classList.add('open');
+    input.focus();
+  }
+  function close() {
+    overlay.classList.remove('open');
+    opener.focus();
+  }
+
+  opener.addEventListener('click', open);
+  document.getElementById('fp-cancel').addEventListener('click', close);
+  overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', function (e) {
+    if (!overlay.classList.contains('open')) return;
+    if (e.key === 'Escape') { close(); return; }
+    if (e.key === 'Tab') {            // keep keyboard focus inside the popup
+      const f = Array.from(overlay.querySelectorAll('input, button')).filter(function (el) { return el.offsetParent !== null && !el.disabled; });
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (busy) return;
+    errorBox.style.display = 'none';
+    okBox.style.display = 'none';
+    const username = input.value.trim();
+    if (!username) {
+      errorBox.textContent = 'Please enter your username.';
+      errorBox.style.display = 'block';
+      input.focus();
+      return;
+    }
+    busy = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+    try {
+      const res = await fetch(API_BASE + '/api/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username }),
+      });
+      let data = {};
+      try { data = await res.json(); } catch (x) { /* non-JSON error page */ }
+      if (!res.ok) {
+        errorBox.textContent = data.error || 'Could not send the link. Please try again.';
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send reset link';
+      } else {
+        okBox.textContent = data.message || 'If that username exists, a reset link has been sent.';
+        okBox.style.display = 'block';
+        submitBtn.style.display = 'none';       // one request per popup; "Close" remains
+      }
+    } catch (err) {
+      errorBox.textContent = 'Could not reach the server. Please try again in a moment.';
+      errorBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send reset link';
+    } finally {
+      busy = false;
+    }
+  });
+})();
 </script>
 </body>
 </html>
