@@ -27,7 +27,10 @@ import hashlib
 import logging
 import os
 import re
+import json
 import secrets
+import threading
+import urllib.request
 from functools import wraps
 
 import psycopg
@@ -1162,6 +1165,203 @@ def change_password():
     if not valid:
         return jsonify({"error": "Username or current password is incorrect."}), 401
     return jsonify({"message": "Password changed."}), 200
+
+
+# --------------------------------------------------------------------------
+# Forgot password: one-time reset link sent to the email on the account
+# --------------------------------------------------------------------------
+#
+# Flow: Login page popup -> POST /api/forgot-password {username}
+#       -> email with a link to SetPassword.html#token=...
+#       -> SetPassword page -> POST /api/reset-password {token, newPassword}
+#
+# The link carries a random token; only its SHA-256 hash is stored, it expires
+# after RESET_TOKEN_MINUTES and works once. The reply to the popup is always the
+# same, whether or not the username exists, so it can't be used to find out who
+# has an account. Mail goes out through an HTTPS email API (Resend), because
+# Render's free web services block outgoing SMTP.
+#
+# Environment variables (Render -> Environment):
+#   RESEND_API_KEY   API key from resend.com                      (required)
+#   MAIL_FROM        e.g. "brAIght <no-reply@braight.in>"         (required; the domain must be verified in Resend)
+#   SITE_URL         e.g. https://braight.in                      (default https://braight.in)
+
+RESET_TOKEN_MINUTES = 30
+RESET_COOLDOWN_SECONDS = 60       # at most one email per account per minute
+RESET_MAX_PER_HOUR = 5            # ... and five per hour
+RESET_MAX_PER_HOUR_ALL = 200      # overall ceiling, so the endpoint can't be used to flood the mail account
+FORGOT_REPLY = {
+    "message": "If that username exists and has an email address on file, "
+               "we have sent a password reset link to it. The link works for "
+               f"{RESET_TOKEN_MINUTES} minutes."
+}
+
+
+def _site_url():
+    return os.environ.get("SITE_URL", "https://braight.in").strip().rstrip("/")
+
+
+def _send_email(to_address, subject, text_body, html_body):
+    """Send one email through Resend. Returns True on success, never raises."""
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    sender = os.environ.get("MAIL_FROM", "").strip()
+    if not api_key or not sender:
+        logger.error("Email not sent: RESEND_API_KEY and MAIL_FROM must be set.")
+        return False
+    payload = json.dumps({
+        "from": sender,
+        "to": [to_address],
+        "subject": subject,
+        "text": text_body,
+        "html": html_body,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": "Bearer " + api_key,
+            "Content-Type": "application/json",
+            "User-Agent": "braight-backend/1.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return 200 <= resp.status < 300
+    except Exception:
+        logger.exception("sending the reset email failed")
+        return False
+
+
+def _send_reset_email(to_address, first_name, token):
+    link = _site_url() + "/SetPassword.html#token=" + token
+    name = (first_name or "there").strip() or "there"
+    text_body = (
+        f"Hello {name},\n\n"
+        "We received a request to reset your brAIght password. Open this link to choose a new one:\n\n"
+        f"{link}\n\n"
+        f"The link works once and expires in {RESET_TOKEN_MINUTES} minutes. "
+        "If you did not ask for this, you can ignore this email; your password stays the same.\n\n"
+        "brAIght"
+    )
+    safe_name = (name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+    html_body = (
+        f"<p>Hello {safe_name},</p>"
+        "<p>We received a request to reset your brAIght password. "
+        "Click the button to choose a new one:</p>"
+        f'<p><a href="{link}" style="display:inline-block;background:#C89B5C;color:#17324F;'
+        'font-weight:700;text-decoration:none;padding:12px 22px;border-radius:8px">Reset password</a></p>'
+        f'<p>Or copy this link into your browser:<br><a href="{link}">{link}</a></p>'
+        f"<p>The link works once and expires in {RESET_TOKEN_MINUTES} minutes. "
+        "If you did not ask for this, you can ignore this email; your password stays the same.</p>"
+        "<p>brAIght</p>"
+    )
+    _send_email(to_address, "Reset your brAIght password", text_body, html_body)
+
+
+@app.route("/api/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    username = username.strip() if isinstance(username, str) else ""
+    if not username or len(username) > 100:
+        return jsonify({"error": "Please enter your username."}), 400
+
+    job = None   # (email, first_name, token) to mail after the database work is done
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT id, first_name, email FROM users WHERE username = %s",
+                (username,),
+            )
+            user = cur.fetchone()
+            email = ((user or {}).get("email") or "").strip()
+            if user and "@" in email:
+                cur.execute(
+                    """
+                    SELECT
+                      COUNT(*) FILTER (WHERE user_id = %s
+                                       AND created_at > NOW() - make_interval(secs => %s)) AS recent,
+                      COUNT(*) FILTER (WHERE user_id = %s) AS user_hour,
+                      COUNT(*) AS all_hour
+                    FROM password_resets
+                    WHERE created_at > NOW() - INTERVAL '1 hour'
+                    """,
+                    (user["id"], RESET_COOLDOWN_SECONDS, user["id"]),
+                )
+                counts = cur.fetchone()
+                if (counts["recent"] == 0
+                        and counts["user_hour"] < RESET_MAX_PER_HOUR
+                        and counts["all_hour"] < RESET_MAX_PER_HOUR_ALL):
+                    token = secrets.token_urlsafe(32)
+                    cur.execute(
+                        """
+                        INSERT INTO password_resets (user_id, token_hash, expires_at)
+                        VALUES (%s, %s, NOW() + make_interval(mins => %s))
+                        """,
+                        (user["id"], _hash_token(token), RESET_TOKEN_MINUTES),
+                    )
+                    job = (email, user["first_name"], token)
+    except Exception:
+        logger.exception("forgot-password failed")
+        return jsonify({"error": "Could not process the request. Please try again."}), 500
+
+    if job:
+        # Sent in the background so the reply takes the same time whether or not
+        # the username exists.
+        threading.Thread(target=_send_reset_email, args=job, daemon=True).start()
+    return jsonify(FORGOT_REPLY), 200
+
+
+@app.route("/api/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json(silent=True) or {}
+    token = data.get("token")
+    new_password = data.get("newPassword")
+    if not isinstance(token, str) or not token.strip() or len(token) > 200:
+        return jsonify({"error": "This reset link is not valid."}), 400
+    if not isinstance(new_password, str) or len(new_password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters."}), 400
+    if len(new_password) > 200:
+        return jsonify({"error": "Password is too long."}), 400
+
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            # Claim the token atomically: a second use (or a race) finds nothing.
+            cur.execute(
+                """
+                UPDATE password_resets
+                   SET used_at = NOW()
+                 WHERE token_hash = %s AND used_at IS NULL AND expires_at > NOW()
+                RETURNING user_id
+                """,
+                (_hash_token(token.strip()),),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return jsonify({
+                    "error": "This reset link is invalid or has expired. Please request a new one."
+                }), 400
+            # New password; also end any live session so whoever had the old password is out.
+            cur.execute(
+                """
+                UPDATE users
+                   SET password_hash = %s,
+                       admin_session_hash = NULL,
+                       admin_session_last_active = NULL
+                 WHERE id = %s
+                """,
+                (generate_password_hash(new_password), row["user_id"]),
+            )
+            # Any other links still outstanding for this user stop working.
+            cur.execute(
+                "UPDATE password_resets SET used_at = NOW() WHERE user_id = %s AND used_at IS NULL",
+                (row["user_id"],),
+            )
+    except Exception:
+        logger.exception("reset-password failed")
+        return jsonify({"error": "Could not reset the password. Please try again."}), 500
+    return jsonify({"message": "Password updated. You can now log in."}), 200
 
 
 if __name__ == "__main__":
