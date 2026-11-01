@@ -84,6 +84,13 @@ h1 { font-size:clamp(28px,4.4vw,38px); line-height:1.15; }
 }
 :root[data-theme="dark"] .auth-forgot button.linkish { color:#9DBDF5; }
 
+.busy-overlay { display:none; position:fixed; inset:0; background:rgba(16,24,35,0.55); z-index:2000; justify-content:center; align-items:center; flex-direction:column; gap:16px; padding:16px; text-align:center; }
+.busy-overlay.show { display:flex; }
+.spinner { width:52px; height:52px; border-radius:50%; border:5px solid rgba(255,255,255,0.35); border-top-color:var(--amber); animation:spin 0.9s linear infinite; }
+.busy-text { color:#F3F6FA; font-size:15px; max-width:30ch; min-height:1.5em; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration:3s; } }
+
 .fp-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; justify-content:center; align-items:center; padding:16px; }
 .fp-overlay.open { display:flex; }
 .fp-modal { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:420px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
@@ -154,6 +161,11 @@ footer b { color:var(--navy); }
   </div>
 </main>
 
+<div class="busy-overlay" id="busy" role="status" aria-live="polite">
+  <div class="spinner" aria-hidden="true"></div>
+  <div class="busy-text" id="busy-text">Logging you in…</div>
+</div>
+
 <div class="fp-overlay" id="fp-overlay" role="dialog" aria-modal="true" aria-labelledby="fp-title">
   <div class="fp-modal">
     <h2 id="fp-title">Forgot your password?</h2>
@@ -194,12 +206,15 @@ document.getElementById('login-form').addEventListener('submit', async function 
   errorBox.style.display = 'none';
   submitBtn.disabled = true;
   submitBtn.textContent = 'Logging in…';
-  // If the server was asleep, say so instead of looking frozen.
+  // Slower than one second: show a spinner. Slower than four: say why.
+  const busy = document.getElementById('busy');
+  const busyText = document.getElementById('busy-text');
+  busyText.textContent = 'Logging you in…';
+  const spinTimer = setTimeout(function () { busy.classList.add('show'); }, 1000);
   const slowTimer = setTimeout(function () {
-    errorBox.className = 'form-error';
-    errorBox.style.cssText = 'display:block;background:var(--panel);border-color:var(--border);color:var(--sub)';
-    errorBox.textContent = 'The server is waking up, which can take up to a minute the first time. Please wait…';
+    busyText.textContent = 'The server is waking up, which can take up to a minute the first time. Please wait…';
   }, 4000);
+  function stopBusy() { clearTimeout(spinTimer); clearTimeout(slowTimer); busy.classList.remove('show'); }
 
   try {
     const res = await fetch(API_BASE + '/api/login', {
@@ -210,10 +225,9 @@ document.getElementById('login-form').addEventListener('submit', async function 
         password: document.getElementById('password').value,
       }),
     });
-    clearTimeout(slowTimer);
-    errorBox.style.cssText = '';
     const data = await res.json();
     if (!res.ok) {
+      stopBusy();
       errorBox.textContent = data.error || 'Login failed.';
       errorBox.style.display = 'block';
       submitBtn.disabled = false;
@@ -229,10 +243,11 @@ document.getElementById('login-form').addEventListener('submit', async function 
       student: 'StudentWorkspace.html',
       jobseeker: 'JobseekerWorkspace.html'
     };
+    // Spinner (if showing) stays up until the next page takes over.
+    clearTimeout(slowTimer);
     window.location.href = destinations[kind] || 'Workspace.html';
   } catch (err) {
-    clearTimeout(slowTimer);
-    errorBox.style.cssText = '';
+    stopBusy();
     errorBox.textContent = 'Could not reach the server. Is the backend running?';
     errorBox.style.display = 'block';
     submitBtn.disabled = false;
