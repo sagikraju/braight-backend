@@ -182,6 +182,11 @@ footer b { color:var(--navy); }
 <script>
 const API_BASE = "https://braight-backend.onrender.com";
 
+// Wake the server as soon as the page opens. The free Render plan sleeps when idle,
+// and the first request after that takes a while; this makes it happen while the
+// user is still typing. The reply is not used, and errors are ignored.
+try { fetch(API_BASE + '/api/health', { mode: 'no-cors', cache: 'no-store' }).catch(function () {}); } catch (e) {}
+
 document.getElementById('login-form').addEventListener('submit', async function (e) {
   e.preventDefault();
   const errorBox = document.getElementById('login-error');
@@ -189,6 +194,12 @@ document.getElementById('login-form').addEventListener('submit', async function 
   errorBox.style.display = 'none';
   submitBtn.disabled = true;
   submitBtn.textContent = 'Logging in…';
+  // If the server was asleep, say so instead of looking frozen.
+  const slowTimer = setTimeout(function () {
+    errorBox.className = 'form-error';
+    errorBox.style.cssText = 'display:block;background:var(--panel);border-color:var(--border);color:var(--sub)';
+    errorBox.textContent = 'The server is waking up, which can take up to a minute the first time. Please wait…';
+  }, 4000);
 
   try {
     const res = await fetch(API_BASE + '/api/login', {
@@ -199,6 +210,8 @@ document.getElementById('login-form').addEventListener('submit', async function 
         password: document.getElementById('password').value,
       }),
     });
+    clearTimeout(slowTimer);
+    errorBox.style.cssText = '';
     const data = await res.json();
     if (!res.ok) {
       errorBox.textContent = data.error || 'Login failed.';
@@ -218,6 +231,8 @@ document.getElementById('login-form').addEventListener('submit', async function 
     };
     window.location.href = destinations[kind] || 'Workspace.html';
   } catch (err) {
+    clearTimeout(slowTimer);
+    errorBox.style.cssText = '';
     errorBox.textContent = 'Could not reach the server. Is the backend running?';
     errorBox.style.display = 'block';
     submitBtn.disabled = false;
