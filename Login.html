@@ -163,7 +163,7 @@ footer b { color:var(--navy); }
 
 <div class="busy-overlay" id="busy" role="status" aria-live="polite">
   <div class="spinner" aria-hidden="true"></div>
-  <div class="busy-text" id="busy-text">Logging you in…</div>
+  <div class="busy-text" id="busy-text">Almost there. Please wait ....</div>
 </div>
 
 <div class="fp-overlay" id="fp-overlay" role="dialog" aria-modal="true" aria-labelledby="fp-title">
@@ -209,7 +209,7 @@ document.getElementById('login-form').addEventListener('submit', async function 
   // Slower than one second: show a spinner. Slower than four: say why.
   const busy = document.getElementById('busy');
   const busyText = document.getElementById('busy-text');
-  busyText.textContent = 'Logging you in…';
+  busyText.textContent = 'Almost there. Please wait ....';
   const spinTimer = setTimeout(function () { busy.classList.add('show'); }, 1000);
   const slowTimer = setTimeout(function () {
     busyText.textContent = 'The server is waking up, which can take up to a minute the first time. Please wait…';
