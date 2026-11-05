@@ -89,6 +89,20 @@ h3 { font-size:17px; line-height:1.3; }
 .gate-box { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:420px; width:100%; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
 .gate-box h3 { font-size:20px; margin:0 0 12px; }
 .gate-box p { color:var(--sub); margin:0 0 20px; font-size:15px; }
+.viewer { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; justify-content:center; align-items:center; padding:16px; }
+.viewer.show { display:flex; }
+.viewer-panel { background:var(--bg); border:1px solid var(--border); border-radius:12px; width:100%; max-width:920px; max-height:100%; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.25); }
+.viewer-head { display:flex; gap:10px; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); }
+.viewer-title { font-weight:600; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.viewer-head .doc-actions { flex-shrink:0; }
+.viewer-body { overflow:auto; padding:18px 22px; min-height:120px; }
+.viewer-body img { display:block; max-width:100%; height:auto; margin:0 auto; }
+.docx-view { font-family:Georgia,'Source Serif 4',serif; color:var(--text); line-height:1.6; overflow-wrap:anywhere; }
+.docx-view p { margin:0 0 10px; white-space:pre-wrap; }
+.docx-view h1,.docx-view h2,.docx-view h3 { margin:16px 0 8px; }
+.docx-view table { border-collapse:collapse; margin:8px 0 14px; max-width:100%; }
+.docx-view td { border:1px solid var(--border); padding:5px 9px; vertical-align:top; }
+.docx-note { font-size:13px; color:var(--sub); margin:0 0 14px; font-family:'Source Sans 3',Arial,sans-serif; }
 .empty { color:var(--sub); border:1px dashed var(--border); border-radius:12px; padding:22px; max-width:640px; }
 @media (max-width:560px) { .doc { grid-template-columns:minmax(0,1fr); } .doc-actions { justify-content:flex-start; } }
 
@@ -163,7 +177,12 @@ UserPage.start(function (user, root) {
     '<div class="gate" id="gate" role="alertdialog" aria-modal="true" aria-labelledby="gate-title" aria-describedby="gate-text">' +
       '<div class="gate-box"><h3 id="gate-title">Premium feature</h3>' +
       '<p id="gate-text">You cannot view/upload Documents currently. Please Upgrade to premium to upload/view your documents.</p>' +
-      '<button type="button" class="btn" id="gate-ok">OK</button></div></div>';
+      '<button type="button" class="btn" id="gate-ok">OK</button></div></div>' +
+    '<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title">' +
+      '<div class="viewer-panel"><div class="viewer-head"><div class="viewer-title" id="viewer-title"></div>' +
+      '<div class="doc-actions"><button type="button" class="btn-small" id="viewer-download">Download</button>' +
+      '<button type="button" class="btn-small" id="viewer-close">Close</button></div></div>' +
+      '<div class="viewer-body" id="viewer-body"></div></div></div>';
 
   var msg = document.getElementById('msg');
   var area = document.getElementById('doc-area');
@@ -226,7 +245,7 @@ UserPage.start(function (user, root) {
         '<div><div class="doc-name">' + esc(d.filename) + '</div>' +
         '<div class="doc-meta">' + esc(CATEGORIES[d.category] || 'Other') + ' · ' + size(d.size) + ' · ' + esc(when(d.uploadedAt)) + '</div></div>' +
         '<div class="doc-actions">' +
-          (d.inline ? '<button type="button" class="btn-small" data-act="view">View</button>' : '') +
+          '<button type="button" class="btn-small" data-act="view">View</button>' +
           '<button type="button" class="btn-small" data-act="download">Download</button>' +
           '<button type="button" class="btn-small danger" data-act="delete">Delete</button>' +
         '</div></li>';
@@ -255,6 +274,192 @@ UserPage.start(function (user, root) {
     if (await isLocked(res)) throw new Error('');
     if (!res.ok) throw new Error(await errorOf(res, 'Could not open the document.'));
     return res.blob();
+  }
+
+  /* ---------- In-page viewer (images and Word documents) ---------- */
+  var viewer = document.getElementById('viewer');
+  var viewerBody = document.getElementById('viewer-body');
+  var viewerOpener = null, viewerUrl = null, viewerDoc = null;
+
+  function closeViewer() {
+    viewer.classList.remove('show');
+    viewerBody.textContent = '';
+    if (viewerUrl) { URL.revokeObjectURL(viewerUrl); viewerUrl = null; }
+    if (viewerOpener && viewerOpener.isConnected) viewerOpener.focus();
+    viewerDoc = null;
+  }
+  document.getElementById('viewer-close').addEventListener('click', closeViewer);
+  viewer.addEventListener('mousedown', function (e) { if (e.target === viewer) closeViewer(); });
+  document.getElementById('viewer-download').addEventListener('click', function () {
+    if (viewerDoc) triggerDownload(viewerDoc);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!viewer.classList.contains('show')) return;
+    if (e.key === 'Escape') { closeViewer(); return; }
+    if (e.key === 'Tab') {
+      var f = [document.getElementById('viewer-download'), document.getElementById('viewer-close')];
+      var i = f.indexOf(document.activeElement);
+      e.preventDefault();
+      f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+    }
+  });
+
+  async function triggerDownload(doc) {
+    try {
+      var blob = await fetchFile(doc.id, true);
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = doc.filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    } catch (err) { if (!locked) say('error', err.message || 'Could not download the document.'); }
+  }
+
+  // A .docx is a zip file. Read word/document.xml out of it with the browser's own
+  // decompression, so no outside library is needed, and show the text.
+  var DOCX_LIMIT = 20 * 1024 * 1024;
+  async function readDocxXml(buf) {
+    var view = new DataView(buf), bytes = new Uint8Array(buf);
+    var eocd = -1;
+    for (var i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) {
+      if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('bad zip');
+    var count = view.getUint16(eocd + 10, true), p = view.getUint32(eocd + 16, true), entry = null;
+    for (var n = 0; n < count; n++) {
+      if (p + 46 > buf.byteLength || view.getUint32(p, true) !== 0x02014b50) break;
+      var nameLen = view.getUint16(p + 28, true), extraLen = view.getUint16(p + 30, true), commentLen = view.getUint16(p + 32, true);
+      var name = new TextDecoder().decode(bytes.subarray(p + 46, p + 46 + nameLen));
+      if (name === 'word/document.xml') {
+        entry = { method: view.getUint16(p + 10, true), size: view.getUint32(p + 20, true), local: view.getUint32(p + 42, true) };
+        break;
+      }
+      p += 46 + nameLen + extraLen + commentLen;
+    }
+    if (!entry) throw new Error('no document.xml');
+    var lo = entry.local;
+    if (view.getUint32(lo, true) !== 0x04034b50) throw new Error('bad zip');
+    var start = lo + 30 + view.getUint16(lo + 26, true) + view.getUint16(lo + 28, true);
+    var raw = bytes.subarray(start, start + entry.size);
+    if (entry.method === 0) return new TextDecoder().decode(raw);
+    if (entry.method !== 8 || typeof DecompressionStream === 'undefined') throw new Error('unsupported');
+    var reader = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+    var chunks = [], total = 0;
+    for (;;) {
+      var r = await reader.read();
+      if (r.done) break;
+      total += r.value.length;
+      if (total > DOCX_LIMIT) { reader.cancel(); throw new Error('too big'); }
+      chunks.push(r.value);
+    }
+    return new TextDecoder().decode(await new Blob(chunks).arrayBuffer());
+  }
+
+  function kids(node, name) {
+    return Array.prototype.filter.call(node.childNodes, function (c) { return c.localName === name; });
+  }
+  function flag(rPr, name) {
+    var el = rPr && kids(rPr, name)[0];
+    if (!el) return false;
+    var v = el.getAttribute('w:val') || el.getAttribute('val');
+    return v !== '0' && v !== 'false' && v !== 'none';
+  }
+  function addRun(parent, r) {
+    var rPr = kids(r, 'rPr')[0];
+    var holder = document.createElement('span');
+    Array.prototype.forEach.call(r.childNodes, function (c) {
+      if (c.localName === 't') holder.appendChild(document.createTextNode(c.textContent));
+      else if (c.localName === 'tab') holder.appendChild(document.createTextNode('    '));
+      else if (c.localName === 'br' || c.localName === 'cr') holder.appendChild(document.createElement('br'));
+    });
+    if (!holder.firstChild) return;
+    var node = holder;
+    if (flag(rPr, 'b'))  { var b = document.createElement('strong'); b.appendChild(node); node = b; }
+    if (flag(rPr, 'i'))  { var it = document.createElement('em'); it.appendChild(node); node = it; }
+    if (flag(rPr, 'u'))  { var u = document.createElement('u'); u.appendChild(node); node = u; }
+    parent.appendChild(node);
+  }
+  function addRuns(parent, container) {
+    Array.prototype.forEach.call(container.childNodes, function (c) {
+      if (c.localName === 'r') addRun(parent, c);
+      else if (c.localName === 'hyperlink' || c.localName === 'ins' || c.localName === 'smartTag' || c.localName === 'sdt' || c.localName === 'sdtContent') addRuns(parent, c);
+    });
+  }
+  var blocksLeft = 0;
+  function addBlocks(parent, container) {
+    Array.prototype.forEach.call(container.childNodes, function (c) {
+      if (blocksLeft <= 0) return;
+      if (c.localName === 'p') {
+        blocksLeft--;
+        var pPr = kids(c, 'pPr')[0], style = '', el;
+        var st = pPr && kids(pPr, 'pStyle')[0];
+        if (st) style = st.getAttribute('w:val') || st.getAttribute('val') || '';
+        var m = /^heading\s*([1-6])$/i.exec(style);
+        if (/^title$/i.test(style)) el = document.createElement('h1');
+        else if (m) el = document.createElement('h' + Math.min(3, +m[1]));
+        else el = document.createElement('p');
+        if (pPr && kids(pPr, 'numPr')[0]) el.appendChild(document.createTextNode('•  '));
+        addRuns(el, c);
+        if (!el.firstChild && el.tagName === 'P') el.appendChild(document.createElement('br'));
+        parent.appendChild(el);
+      } else if (c.localName === 'tbl') {
+        var table = document.createElement('table');
+        kids(c, 'tr').forEach(function (tr) {
+          var row = table.insertRow();
+          kids(tr, 'tc').forEach(function (tc) { addBlocks(row.insertCell(), tc); });
+        });
+        parent.appendChild(table);
+      } else if (c.localName === 'sdt' || c.localName === 'sdtContent' || c.localName === 'body') {
+        addBlocks(parent, c);
+      }
+    });
+  }
+  async function docxPreview(blob) {
+    var xml = await readDocxXml(await blob.arrayBuffer());
+    var dom = new DOMParser().parseFromString(xml, 'application/xml');
+    if (dom.getElementsByTagName('parsererror').length) throw new Error('bad xml');
+    var body = dom.getElementsByTagNameNS('*', 'body')[0];
+    if (!body) throw new Error('no body');
+    var wrap = document.createElement('div');
+    var note = document.createElement('p');
+    note.className = 'docx-note';
+    note.textContent = 'This is a text preview. Images, fonts and page layout are not shown; use Download for the full document.';
+    var doc = document.createElement('div');
+    doc.className = 'docx-view';
+    blocksLeft = 3000;
+    addBlocks(doc, body);
+    if (blocksLeft <= 0) {
+      var cut = document.createElement('p'); cut.className = 'docx-note'; cut.textContent = 'The preview stops here. Download the file to read the rest.';
+      doc.appendChild(cut);
+    }
+    if (!doc.textContent.trim() && !doc.querySelector('table')) {
+      doc.appendChild(Object.assign(document.createElement('p'), { textContent: 'This document has no text to preview.' }));
+    }
+    wrap.appendChild(note); wrap.appendChild(doc);
+    return wrap;
+  }
+
+  async function showViewer(doc, blob, opener) {
+    var content;
+    if (/^image\//.test(doc.contentType)) {
+      viewerUrl = URL.createObjectURL(new Blob([blob], { type: doc.contentType }));
+      content = document.createElement('img');
+      content.alt = doc.filename;
+      content.src = viewerUrl;
+    } else {
+      try { content = await docxPreview(blob); }
+      catch (err) {
+        content = document.createElement('p');
+        content.textContent = 'This document cannot be previewed here. Please use Download to open it.';
+      }
+    }
+    viewerDoc = doc;
+    viewerOpener = opener;
+    document.getElementById('viewer-title').textContent = doc.filename;
+    viewerBody.textContent = '';
+    viewerBody.appendChild(content);
+    viewer.classList.add('show');
+    document.getElementById('viewer-close').focus();
   }
 
   area.addEventListener('click', async function (e) {
@@ -291,20 +496,28 @@ UserPage.start(function (user, root) {
     }
 
     btn.disabled = true;
-    // Open the tab now (while the click still counts), fill it in when the file arrives.
-    var tab = act === 'view' ? window.open('', '_blank') : null;
+    // PDFs open in a new browser tab (its built-in PDF reader). Open the tab now, while the
+    // click still counts, and fill it in when the file arrives. Images and Word files open
+    // in the viewer on this page.
+    var isPdf = doc.contentType === 'application/pdf';
+    var tab = (act === 'view' && isPdf) ? window.open('', '_blank') : null;
     try {
+      if (act === 'view' && isPdf && !tab) throw new Error('Your browser blocked the new tab. Allow pop-ups for this site, or use Download.');
       var blob = await fetchFile(id, act === 'download');
       if (AppSession.isEnded()) { if (tab) tab.close(); return; }
-      var url = URL.createObjectURL(blob);
-      if (act === 'view' && tab) {
-        tab.location.href = url;
+      if (act === 'view' && !isPdf) {
+        await showViewer(doc, blob, btn);
       } else {
-        var a = document.createElement('a');
-        a.href = url; a.download = doc.filename;
-        document.body.appendChild(a); a.click(); a.remove();
+        var url = URL.createObjectURL(blob);
+        if (act === 'view') {
+          tab.location.href = url;
+        } else {
+          var a = document.createElement('a');
+          a.href = url; a.download = doc.filename;
+          document.body.appendChild(a); a.click(); a.remove();
+        }
+        setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
       }
-      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
     } catch (err) {
       if (tab) tab.close();
       if (!locked) say('error', err.message || 'Could not open the document.');
