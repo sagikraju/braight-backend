@@ -34,9 +34,9 @@ header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; backgroun
 header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
 .brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
 .brand .ai { color:var(--moss); }
-nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; align-items:center; }
-nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
-nav a:hover { color:var(--navy); }
+header nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; align-items:center; }
+header nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+header nav a:hover { color:var(--navy); }
 .logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; font-size:14px; }
 .logout-btn:hover { background:var(--border); }
 
@@ -118,9 +118,12 @@ footer b { color:var(--navy); }
   </div>
 </header>
 
-<main id="app">
-  <div class="wrap"><p class="lede">Loading your workspace…</p></div>
-</main>
+<div class="user-layout">
+  <aside id="user-nav"></aside>
+  <main id="app">
+    <div class="wrap"><p class="lede">Loading your workspace…</p></div>
+  </main>
+</div>
 
 <footer>
   <div class="wrap">
@@ -129,7 +132,8 @@ footer b { color:var(--navy); }
   </div>
 </footer>
 
-<script src="admin-session.js?v=2"></script>
+<script src="user-nav.js?v=1"></script>
+<script src="admin-session.js?v=3"></script>
 <script>
 /* ------------------------------------------------------------------
    Page content: edit the text, links and items here.
@@ -303,6 +307,7 @@ const PAGE = {
     "groups": [
       {
         "title": "Milestones",
+        "prefix": "milestone",
         "items": [
           "I analyzed a real dataset with Python",
           "I built clear visualizations",
@@ -315,6 +320,7 @@ const PAGE = {
       },
       {
         "title": "Sessions I have completed",
+        "prefix": "session",
         "chips": true,
         "items": [
           "Session 1",
@@ -396,7 +402,7 @@ function render(user) {
     '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progress"><span id="progress-bar"></span></div>' +
     '<p class="progress-label" id="progress-label"></p>' +
     '<div id="progress-list"></div>' +
-    '<p class="note">Your ticks are saved in this browser only.</p></div></section>';
+    '<p class="note" id="progress-note"></p></div></section>';
 
   html += '<section class="block"><div class="help-card"><p>' + esc(PAGE.help) +
     ' <a href="mailto:sagikraju@braight.in">sagikraju@braight.in</a>.</p></div></section></div>';
@@ -409,17 +415,15 @@ function setupProgress(user) {
   const list = document.getElementById('progress-list');
   const bar = document.getElementById('progress-bar');
   const label = document.getElementById('progress-label');
+  const note = document.getElementById('progress-note');
   const groups = PAGE.progress.groups;
+  const SAVED_NOTE = 'Your progress is saved to your account.';
   let total = 0;
   groups.forEach(function (g) { total += g.items.length; });
-  const key = 'braight_progress_v2_' + PAGE.slug + '_' + (user.username || '');
-  let done = {};
-  try { done = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { done = {}; }
 
-  list.innerHTML = groups.map(function (g, gi) {
+  list.innerHTML = groups.map(function (g) {
     const rows = g.items.map(function (t, i) {
-      const k = gi + '-' + i;
-      const input = '<input type="checkbox" data-k="' + k + '"' + (done[k] ? ' checked' : '') + '>';
+      const input = '<input type="checkbox" disabled data-key="' + esc(g.prefix + ':' + (i + 1)) + '">';
       return g.chips
         ? '<label class="chip">' + input + '<span>' + esc(t) + '</span></label>'
         : '<label class="check">' + input + '<span>' + esc(t) + '</span></label>';
@@ -427,6 +431,8 @@ function setupProgress(user) {
     return '<div class="group-title">' + esc(g.title) + '</div>' + (g.chips ? '<div class="chips">' + rows + '</div>' : rows);
   }).join('');
 
+  function boxes() { return list.querySelectorAll('input[type="checkbox"]'); }
+  function say(msg) { note.textContent = msg; }
   function update() {
     const n = list.querySelectorAll('input:checked').length;
     const pct = Math.round(n / total * 100);
@@ -434,14 +440,54 @@ function setupProgress(user) {
     bar.parentElement.setAttribute('aria-valuenow', pct);
     label.textContent = n + ' of ' + total + ' done (' + pct + '%)';
   }
-  list.addEventListener('change', function (e) {
+
+  // Save each tick to the database as it happens; put the box back if saving fails.
+  list.addEventListener('change', async function (e) {
     const box = e.target;
     if (!box || !box.matches('input[type="checkbox"]')) return;
-    done[box.dataset.k] = box.checked;
-    try { localStorage.setItem(key, JSON.stringify(done)); } catch (err) { /* storage unavailable: still works this visit */ }
+    const wanted = box.checked;
     update();
+    try {
+      const res = await AppSession.apiFetch('/api/progress', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_key: box.dataset.key, done: wanted })
+      });
+      if (AppSession.isEnded()) return;
+      if (!res.ok) throw new Error('save failed');
+      say(SAVED_NOTE);
+    } catch (err) {
+      if (AppSession.isEnded()) return;
+      box.checked = !wanted;
+      update();
+      say('We could not save that change. Please check your connection and try again.');
+    }
   });
+
   update();
+  // Load what was saved earlier. The boxes stay disabled until then so a tick can't be overwritten.
+  (async function loadSaved() {
+    try {
+      const res = await AppSession.apiFetch('/api/progress');
+      if (AppSession.isEnded()) return;
+      if (!res.ok) throw new Error('load failed');
+      const data = await res.json();
+      const saved = {};
+      (data.items || []).forEach(function (k) { saved[k] = true; });
+      boxes().forEach(function (b) { b.checked = !!saved[b.dataset.key]; });
+      update();
+      say(SAVED_NOTE);
+      if (data.cohort && data.cohort.name) {
+        const facts = document.querySelector('.facts');
+        if (facts) facts.insertAdjacentHTML('beforeend',
+          '<div class="fact"><span class="fact-label">Your cohort</span><span class="fact-value">' + esc(data.cohort.name) + '</span></div>');
+      }
+    } catch (err) {
+      if (AppSession.isEnded()) return;
+      say('We could not load your saved progress, so changes may not be saved right now.');
+    }
+    boxes().forEach(function (b) { b.disabled = false; });
+  })();
 }
 
 (function () {
