@@ -24,6 +24,7 @@ Render start command: gunicorn app:app
 
 import datetime
 import hashlib
+import io
 import logging
 import os
 import re
@@ -34,7 +35,7 @@ import urllib.request
 from functools import wraps
 
 import psycopg
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, request, send_file
 from flask_cors import CORS
 from psycopg import errors as pg_errors
 from psycopg.rows import dict_row
@@ -44,7 +45,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("braight-backend")
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 256 * 1024   # reject oversized request bodies
+# Request bodies are capped at 256 KB everywhere except document uploads (see
+# DOC_MAX_BYTES below), which may be a little over 5 MB with the form overhead.
+SMALL_BODY_LIMIT = 256 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
 
 _origins_env = os.environ.get(
     "ALLOWED_ORIGINS",
@@ -55,7 +59,7 @@ CORS(
     app,
     origins=ALLOWED_ORIGINS,
     allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "OPTIONS"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 )
 
 # ADMIN accounts can still log in if already present, but public signup is
@@ -1362,6 +1366,234 @@ def reset_password():
         logger.exception("reset-password failed")
         return jsonify({"error": "Could not reset the password. Please try again."}), 500
     return jsonify({"message": "Password updated. You can now log in."}), 200
+
+
+# --------------------------------------------------------------------------
+# My Payments (subscribed flag) and My Documents
+# --------------------------------------------------------------------------
+
+@app.before_request
+def _limit_body_size():
+    """Everything except the document upload only accepts small bodies."""
+    if request.method in ("POST", "PUT") and request.path != "/api/documents":
+        length = request.content_length
+        if length is not None and length > SMALL_BODY_LIMIT:
+            return jsonify({"error": "Request too large."}), 413
+
+
+@app.errorhandler(413)
+def _too_large(_exc):
+    return jsonify({"error": "That file is too large. The limit is 5 MB."}), 413
+
+
+@app.route("/api/subscribe", methods=["POST"])
+@require_session
+def subscribe():
+    """Called when a user opens My Payments: marks the account as subscribed."""
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("UPDATE users SET subscribed = TRUE WHERE username = %s", (g.session_username,))
+        return jsonify({"subscribed": True}), 200
+    except Exception:
+        logger.exception("subscribe failed")
+        return jsonify({"error": "Could not update your subscription."}), 500
+
+
+DOC_MAX_BYTES = 5 * 1024 * 1024          # per file
+DOC_MAX_FILES = 20                       # per user
+DOC_MAX_TOTAL_BYTES = 40 * 1024 * 1024   # per user, all files together
+DOC_CATEGORIES = {"resume", "certificate", "id_proof", "other"}
+_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_JPEG_OK = lambda b: b.startswith(b"\xff\xd8\xff")
+# extension -> (content type we serve it as, check that the bytes really are that kind of file)
+DOC_TYPES = {
+    "pdf":  ("application/pdf", lambda b: b.startswith(b"%PDF-")),
+    "png":  ("image/png", lambda b: b.startswith(b"\x89PNG\r\n\x1a\n")),
+    "jpg":  ("image/jpeg", _JPEG_OK),
+    "jpeg": ("image/jpeg", _JPEG_OK),
+    "docx": (_DOCX, lambda b: b.startswith(b"PK\x03\x04")),
+}
+# Only these are ever shown inside the browser; everything else downloads.
+DOC_INLINE_TYPES = {"application/pdf", "image/png", "image/jpeg"}
+
+
+def require_subscribed(view):
+    """Document endpoints are for subscribed users only (users.subscribed = TRUE).
+    Use below @require_session. Anyone else gets 403 with code NOT_SUBSCRIBED."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        try:
+            with get_connection() as conn, conn.cursor() as cur:
+                cur.execute("SELECT subscribed FROM users WHERE username = %s", (g.session_username,))
+                row = cur.fetchone()
+        except Exception:
+            logger.exception("subscription check failed")
+            return jsonify({"error": "Could not check your subscription."}), 500
+        if not row or row[0] is not True:
+            return jsonify({
+                "error": "You cannot view/upload documents currently. Please upgrade to premium to upload/view your documents.",
+                "code": "NOT_SUBSCRIBED",
+            }), 403
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def _clean_filename(raw):
+    name = (raw or "").replace("\\", "/").rsplit("/", 1)[-1]
+    name = "".join(ch for ch in name if ch.isprintable() and ch not in '<>:"|?*').strip(" .")
+    if len(name) > 200:
+        stem, dot, ext = name.rpartition(".")
+        name = (stem[: 200 - len(ext) - 1] + "." + ext) if dot else name[:200]
+    return name
+
+
+def _doc_view(row):
+    return {
+        "id": row["id"],
+        "filename": row["filename"],
+        "category": row["category"],
+        "size": row["size_bytes"],
+        "contentType": row["content_type"],
+        "inline": row["content_type"] in DOC_INLINE_TYPES,
+        "uploadedAt": _iso(row["uploaded_at"]),
+    }
+
+
+@app.route("/api/documents", methods=["GET"])
+@require_session
+@require_subscribed
+def list_documents():
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT d.id, d.filename, d.category, d.size_bytes, d.content_type, d.uploaded_at
+                FROM user_documents d JOIN users u ON u.id = d.user_id
+                WHERE u.username = %s
+                ORDER BY d.uploaded_at DESC, d.id DESC
+                """,
+                (g.session_username,),
+            )
+            rows = cur.fetchall()
+        return jsonify({
+            "documents": [_doc_view(r) for r in rows],
+            "limits": {"maxBytes": DOC_MAX_BYTES, "maxFiles": DOC_MAX_FILES},
+        }), 200
+    except Exception:
+        logger.exception("list_documents failed")
+        return jsonify({"error": "Could not load your documents."}), 500
+
+
+@app.route("/api/documents", methods=["POST"])
+@require_session
+@require_subscribed
+def upload_document():
+    upload = request.files.get("file")
+    if upload is None or not upload.filename:
+        return jsonify({"error": "Please choose a file."}), 400
+    name = _clean_filename(upload.filename)
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    spec = DOC_TYPES.get(ext)
+    if not name or spec is None:
+        return jsonify({"error": "Only PDF, PNG, JPG and DOCX files can be uploaded."}), 400
+    category = (request.form.get("category") or "other").strip()
+    if category not in DOC_CATEGORIES:
+        return jsonify({"error": "Please choose a valid document type."}), 400
+
+    data = upload.read(DOC_MAX_BYTES + 1)
+    if not data:
+        return jsonify({"error": "That file is empty."}), 400
+    if len(data) > DOC_MAX_BYTES:
+        return jsonify({"error": "That file is too large. The limit is 5 MB."}), 413
+    content_type, looks_right = spec
+    if not looks_right(data):
+        return jsonify({"error": "That file does not look like a real ." + ext + " file."}), 400
+
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            # Lock the user's row so two simultaneous uploads can't both slip past the limits.
+            cur.execute("SELECT id FROM users WHERE username = %s FOR UPDATE", (g.session_username,))
+            user = cur.fetchone()
+            if user is None:
+                return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+            cur.execute(
+                "SELECT COUNT(*) AS n, COALESCE(SUM(size_bytes), 0) AS total FROM user_documents WHERE user_id = %s",
+                (user["id"],),
+            )
+            used = cur.fetchone()
+            if used["n"] >= DOC_MAX_FILES:
+                return jsonify({"error": f"You can keep up to {DOC_MAX_FILES} documents. Delete one to upload another."}), 409
+            if used["total"] + len(data) > DOC_MAX_TOTAL_BYTES:
+                return jsonify({"error": "You have reached your storage limit. Delete a document to upload another."}), 409
+            cur.execute(
+                """
+                INSERT INTO user_documents (user_id, filename, content_type, category, size_bytes, data)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id, filename, category, size_bytes, content_type, uploaded_at
+                """,
+                (user["id"], name, content_type, category, len(data), data),
+            )
+            row = cur.fetchone()
+        return jsonify({"document": _doc_view(row)}), 201
+    except Exception:
+        logger.exception("upload_document failed")
+        return jsonify({"error": "Could not save the document."}), 500
+
+
+@app.route("/api/documents/<int:doc_id>/file", methods=["GET"])
+@require_session
+@require_subscribed
+def get_document_file(doc_id):
+    """Returns the file to its owner only. ?download=1 forces a download."""
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT d.filename, d.content_type, d.data
+                FROM user_documents d JOIN users u ON u.id = d.user_id
+                WHERE d.id = %s AND u.username = %s
+                """,
+                (doc_id, g.session_username),
+            )
+            row = cur.fetchone()
+    except Exception:
+        logger.exception("get_document_file failed")
+        return jsonify({"error": "Could not load the document."}), 500
+    if row is None:
+        return jsonify({"error": "Document not found."}), 404
+
+    as_download = request.args.get("download") == "1" or row["content_type"] not in DOC_INLINE_TYPES
+    resp = send_file(
+        io.BytesIO(bytes(row["data"])),
+        mimetype=row["content_type"],
+        as_attachment=as_download,
+        download_name=row["filename"],
+    )
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Cache-Control"] = "private, no-store"
+    resp.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
+    return resp
+
+
+@app.route("/api/documents/<int:doc_id>", methods=["DELETE"])
+@require_session
+@require_subscribed
+def delete_document(doc_id):
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM user_documents
+                WHERE id = %s AND user_id = (SELECT id FROM users WHERE username = %s)
+                """,
+                (doc_id, g.session_username),
+            )
+            if cur.rowcount == 0:
+                return jsonify({"error": "Document not found."}), 404
+        return jsonify({"message": "Document deleted."}), 200
+    except Exception:
+        logger.exception("delete_document failed")
+        return jsonify({"error": "Could not delete the document."}), 500
 
 
 if __name__ == "__main__":
