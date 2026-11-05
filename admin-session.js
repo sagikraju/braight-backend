@@ -199,7 +199,8 @@
     init: init,
     apiFetch: apiFetch,
     logout: logout,
-    isEnded: function () { return ended; }
+    isEnded: function () { return ended; },
+    touch: markActive      // counts as activity (used during long uploads)
   };
   window.AdminSession = api;   // used by the admin pages
   window.AppSession = api;     // same object; used by the Workspace page
