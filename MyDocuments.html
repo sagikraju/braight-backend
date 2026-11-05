@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>My Documents — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D; --danger:#A23B3B; --ok:#2F6B34;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --danger:#E7A8A8; --ok:#A9D6AE;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --danger:#E7A8A8; --ok:#A9D6AE;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+header nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; align-items:center; }
+header nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+header nav a:hover { color:var(--navy); }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; font-size:14px; }
+.logout-btn:hover { background:var(--border); }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(28px,4.4vw,40px); line-height:1.12; }
+h2 { font-size:clamp(20px,2.6vw,24px); line-height:1.2; }
+h3 { font-size:17px; line-height:1.3; }
+.lede { font-size:clamp(16px,2vw,18px); color:var(--sub); max-width:64ch; margin:14px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+.hero { padding:44px 0 24px; }
+.block { padding:26px 0; border-top:1px solid var(--border); }
+
+.card { display:flex; flex-direction:column; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:640px; }
+.card.soon { border-style:dashed; background:transparent; }
+.card p { margin:0; color:var(--sub); }
+.tag { align-self:flex-start; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 9px; }
+.noted { margin:16px 0 0; font-size:14px; color:var(--ok); min-height:1.4em; }
+
+.btn { display:inline-block; background:var(--amber); color:#17324F; font-weight:700; text-decoration:none; padding:10px 20px; border-radius:8px; font-family:inherit; font-size:15px; border:none; cursor:pointer; }
+.btn[disabled] { opacity:0.6; cursor:default; }
+.btn-small { padding:5px 12px; font-size:13.5px; border-radius:6px; font-weight:600; background:transparent; color:var(--navy); border:1px solid var(--border); }
+.btn-small:hover { background:var(--border); }
+.btn-small.danger { color:var(--danger); }
+.btn-small[disabled] { opacity:0.5; cursor:default; }
+
+.msg { display:none; padding:10px 12px; border-radius:8px; font-size:14px; margin:0 0 14px; max-width:640px; }
+.msg.error { background:#FBEAEA; border:1px solid #E3B8B8; color:#A23B3B; }
+.msg.ok { background:#EAF4EA; border:1px solid #B9D8B9; color:#2F6B34; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .msg.error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+  :root:not([data-theme="light"]) .msg.ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+}
+:root[data-theme="dark"] .msg.error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+:root[data-theme="dark"] .msg.ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+
+.upload-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 22px; max-width:760px; }
+.upload-row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+.field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.field label { font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); }
+.field select, .field input[type=file] { max-width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-family:inherit; font-size:14.5px; }
+.hint { font-size:13px; color:var(--sub); margin:12px 0 0; }
+.doc-list { list-style:none; margin:0; padding:0; display:grid; gap:10px; max-width:900px; }
+.doc { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 16px; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 16px; }
+.doc-name { font-weight:600; color:var(--navy); overflow-wrap:anywhere; }
+.doc-meta { font-size:13px; color:var(--sub); }
+.doc-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.gate { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; justify-content:center; align-items:center; padding:16px; }
+.gate.show { display:flex; }
+.gate-box { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:420px; width:100%; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
+.gate-box h3 { font-size:20px; margin:0 0 12px; }
+.gate-box p { color:var(--sub); margin:0 0 20px; font-size:15px; }
+.empty { color:var(--sub); border:1px dashed var(--border); border-radius:12px; padding:22px; max-width:640px; }
+@media (max-width:560px) { .doc { grid-template-columns:minmax(0,1fr); } .doc-actions { justify-content:flex-start; } }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <nav>
+      <a href="index.html#/schools">Schools &amp; Students</a>
+      <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
+      <a href="SDG.html">SDG Goals</a>
+      <a href="sdg-dashboard.html">SDG Dashboard</a>
+      <a href="insights.html">Data Insights</a>
+      <button type="button" class="logout-btn" id="logout-btn">Log Out</button>
+    </nav>
+  </div>
+</header>
+
+<div class="user-layout">
+  <aside id="user-nav"></aside>
+  <main id="app">
+    <div class="wrap"><p class="lede">Loading…</p></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script src="user-nav.js?v=1"></script>
+<script src="admin-session.js?v=3"></script>
+<script src="user-page.js?v=1"></script>
+<script>
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+UserPage.start(function (user, root) {
+  var MAX_BYTES = 5 * 1024 * 1024;
+  var ALLOWED = ['pdf', 'png', 'jpg', 'jpeg', 'docx'];
+  var CATEGORIES = { resume: 'Resume', certificate: 'Certificate', id_proof: 'ID proof', other: 'Other' };
+  var maxFiles = 20;
+  var docs = [];
+
+  root.innerHTML =
+    '<div class="wrap"><div class="hero"><div class="kicker">My Documents</div>' +
+    '<h1>Your documents</h1>' +
+    '<p class="lede">Upload documents such as your resume or certificates, and view them here whenever you need them. Only you can see them in your account.</p></div>' +
+
+    '<section class="block"><h2 style="margin-bottom:14px">Upload a document</h2>' +
+    '<div class="msg" id="msg" role="alert"></div>' +
+    '<form class="upload-card" id="upload-form" novalidate><div class="upload-row">' +
+      '<div class="field"><label for="doc-category">Type</label><select id="doc-category">' +
+        Object.keys(CATEGORIES).map(function (k) { return '<option value="' + k + '">' + esc(CATEGORIES[k]) + '</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="field" style="flex:1 1 220px"><label for="doc-file">File</label>' +
+        '<input type="file" id="doc-file" accept=".pdf,.png,.jpg,.jpeg,.docx"></div>' +
+      '<button type="submit" class="btn" id="upload-btn">Upload</button>' +
+    '</div><p class="hint">PDF, PNG, JPG or DOCX, up to 5 MB each (up to 20 documents).</p></form></section>' +
+
+    '<section class="block"><h2 style="margin-bottom:14px">Uploaded documents</h2>' +
+    '<div id="doc-area"><p class="lede" style="margin:0">Loading…</p></div></section></div>' +
+    '<div class="gate" id="gate" role="alertdialog" aria-modal="true" aria-labelledby="gate-title" aria-describedby="gate-text">' +
+      '<div class="gate-box"><h3 id="gate-title">Premium feature</h3>' +
+      '<p id="gate-text">You cannot view/upload Documents currently. Please Upgrade to premium to upload/view your documents.</p>' +
+      '<button type="button" class="btn" id="gate-ok">OK</button></div></div>';
+
+  var msg = document.getElementById('msg');
+  var area = document.getElementById('doc-area');
+  var form = document.getElementById('upload-form');
+  var fileInput = document.getElementById('doc-file');
+  var uploadBtn = document.getElementById('upload-btn');
+
+  function say(kind, text) {
+    if (!text) { msg.style.display = 'none'; return; }
+    msg.className = 'msg ' + kind;
+    msg.textContent = text;
+    msg.style.display = 'block';
+  }
+  function size(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / 1024 / 1024).toFixed(1) + ' MB';
+  }
+  function when(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  // Not a premium (subscribed) user: show the popup and take the documents tools off the page.
+  var locked = false;
+  function lockOut() {
+    if (locked) return;
+    locked = true;
+    document.querySelector('.hero + .block').remove();     // upload form
+    area.innerHTML = '';
+    var gate = document.getElementById('gate');
+    gate.classList.add('show');
+    var ok = document.getElementById('gate-ok');
+    ok.focus();
+    function leave() {
+      var t = String(user.userType || '').toLowerCase().replace(/\s+/g, '');
+      window.location.replace(t === 'jobseeker' ? 'JobseekerWorkspace.html' : 'StudentWorkspace.html');
+    }
+    ok.addEventListener('click', leave);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') leave();
+      if (e.key === 'Tab') { e.preventDefault(); ok.focus(); }   // keep focus on the popup
+    });
+  }
+  async function isLocked(res) {
+    if (res.status !== 403) return false;
+    try { var j = await res.clone().json(); if (j.code === 'NOT_SUBSCRIBED') { lockOut(); return true; } } catch (e) { /* not ours */ }
+    return false;
+  }
+  async function errorOf(res, fallback) {
+    try { var j = await res.json(); return j.error || fallback; } catch (e) { return fallback; }
+  }
+
+  function draw() {
+    if (!docs.length) {
+      area.innerHTML = '<div class="empty">You have not uploaded any documents yet.</div>';
+      return;
+    }
+    area.innerHTML = '<ul class="doc-list">' + docs.map(function (d) {
+      return '<li class="doc" data-id="' + esc(d.id) + '">' +
+        '<div><div class="doc-name">' + esc(d.filename) + '</div>' +
+        '<div class="doc-meta">' + esc(CATEGORIES[d.category] || 'Other') + ' · ' + size(d.size) + ' · ' + esc(when(d.uploadedAt)) + '</div></div>' +
+        '<div class="doc-actions">' +
+          (d.inline ? '<button type="button" class="btn-small" data-act="view">View</button>' : '') +
+          '<button type="button" class="btn-small" data-act="download">Download</button>' +
+          '<button type="button" class="btn-small danger" data-act="delete">Delete</button>' +
+        '</div></li>';
+    }).join('') + '</ul>';
+  }
+
+  async function load() {
+    try {
+      var res = await AppSession.apiFetch('/api/documents');
+      if (AppSession.isEnded()) return;
+      if (await isLocked(res)) return;
+      if (!res.ok) throw new Error('load');
+      var data = await res.json();
+      docs = data.documents || [];
+      if (data.limits && data.limits.maxFiles) maxFiles = data.limits.maxFiles;
+      draw();
+    } catch (e) {
+      if (AppSession.isEnded()) return;
+      area.innerHTML = '<div class="empty">We could not load your documents. Please refresh the page.</div>';
+    }
+  }
+
+  // Files are fetched with the session header, so the file opens from a temporary in-browser copy.
+  async function fetchFile(id, download) {
+    var res = await AppSession.apiFetch('/api/documents/' + encodeURIComponent(id) + '/file' + (download ? '?download=1' : ''));
+    if (await isLocked(res)) throw new Error('');
+    if (!res.ok) throw new Error(await errorOf(res, 'Could not open the document.'));
+    return res.blob();
+  }
+
+  area.addEventListener('click', async function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    var li = btn.closest('.doc');
+    var id = li.getAttribute('data-id');
+    var doc = docs.filter(function (d) { return String(d.id) === id; })[0];
+    if (!doc) return;
+    var act = btn.getAttribute('data-act');
+    say('', '');
+
+    if (act === 'delete') {
+      if (btn.dataset.armed !== '1') {            // first click asks, second click deletes
+        btn.dataset.armed = '1';
+        btn.textContent = 'Confirm delete?';
+        setTimeout(function () { if (btn.isConnected) { btn.dataset.armed = ''; btn.textContent = 'Delete'; } }, 4000);
+        return;
+      }
+      btn.disabled = true;
+      try {
+        var res = await AppSession.apiFetch('/api/documents/' + encodeURIComponent(id), { method: 'DELETE' });
+        if (AppSession.isEnded()) return;
+        if (await isLocked(res)) return;
+        if (!res.ok && res.status !== 404) throw new Error(await errorOf(res, 'Could not delete the document.'));
+        docs = docs.filter(function (d) { return String(d.id) !== id; });
+        draw();
+        say('ok', 'Document deleted.');
+      } catch (err) {
+        btn.disabled = false; btn.dataset.armed = ''; btn.textContent = 'Delete';
+        say('error', err.message);
+      }
+      return;
+    }
+
+    btn.disabled = true;
+    // Open the tab now (while the click still counts), fill it in when the file arrives.
+    var tab = act === 'view' ? window.open('', '_blank') : null;
+    try {
+      var blob = await fetchFile(id, act === 'download');
+      if (AppSession.isEnded()) { if (tab) tab.close(); return; }
+      var url = URL.createObjectURL(blob);
+      if (act === 'view' && tab) {
+        tab.location.href = url;
+      } else {
+        var a = document.createElement('a');
+        a.href = url; a.download = doc.filename;
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    } catch (err) {
+      if (tab) tab.close();
+      if (!locked) say('error', err.message || 'Could not open the document.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    say('', '');
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) { say('error', 'Please choose a file to upload.'); return; }
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (ALLOWED.indexOf(ext) === -1) { say('error', 'Only PDF, PNG, JPG and DOCX files can be uploaded.'); return; }
+    if (file.size === 0) { say('error', 'That file is empty.'); return; }
+    if (file.size > MAX_BYTES) { say('error', 'That file is too large. The limit is 5 MB.'); return; }
+    if (docs.length >= maxFiles) { say('error', 'You can keep up to ' + maxFiles + ' documents. Delete one to upload another.'); return; }
+
+    var body = new FormData();
+    body.append('file', file);
+    body.append('category', document.getElementById('doc-category').value);
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading…';
+    // A slow upload with no mouse movement must not look like inactivity.
+    var keep = setInterval(function () { if (AppSession.touch) AppSession.touch(); }, 5000);
+    try {
+      var res = await AppSession.apiFetch('/api/documents', { method: 'POST', body: body });
+      if (AppSession.isEnded()) return;
+      if (await isLocked(res)) return;
+      if (!res.ok) throw new Error(await errorOf(res, 'Could not upload the document.'));
+      var data = await res.json();
+      docs.unshift(data.document);
+      draw();
+      form.reset();
+      say('ok', 'Uploaded ' + data.document.filename + '.');
+    } catch (err) {
+      if (AppSession.isEnded()) return;
+      say('error', err instanceof TypeError ? 'Could not reach the server. Please try again.' : err.message);
+    } finally {
+      clearInterval(keep);
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Upload';
+    }
+  });
+
+  load();
+});
+</script>
+</body>
+</html>
