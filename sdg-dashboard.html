@@ -1,0 +1,177 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>SDG Data Dashboard — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script><script src="sdg-data.js"></script>
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; }
+nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+nav a.on { color:var(--navy); border-bottom-color:var(--amber); }
+
+.page { display:none; }
+.page.active { display:block; }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(32px,5.2vw,50px); line-height:1.1; }
+h2 { font-size:clamp(22px,3vw,30px); line-height:1.18; margin-bottom:6px; }
+h3 { font-size:17px; line-height:1.3; margin:0; }
+.lede { font-size:clamp(16px,2vw,19px); color:var(--sub); max-width:60ch; margin:16px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+
+.hero { padding:56px 0 40px; }
+.tag { font-family:'Source Serif 4',Georgia,serif; font-style:italic; color:var(--navy-soft); font-size:clamp(16px,2.1vw,20px); margin-top:12px; }
+
+section.block { padding:40px 0; border-top:1px solid var(--border); }
+
+.grid { display:grid; gap:18px; }
+.cols-2 { grid-template-columns:1fr 1fr; }
+.cols-3 { grid-template-columns:repeat(3,1fr); }
+.cols-4 { grid-template-columns:repeat(4,1fr); }
+.cols-5 { grid-template-columns:repeat(5,1fr); }
+.cols-6 { grid-template-columns:repeat(6,1fr); }
+
+.card {
+  background:var(--panel); border:1px solid var(--border); border-radius:10px;
+  padding:22px 18px; text-align:center; text-decoration:none; display:flex;
+  flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  min-height:150px;
+}
+.card:hover { border-color:var(--moss); }
+.card .icon { width:34px; height:34px; color:var(--icon); }
+.card .icon svg { width:100%; height:100%; display:block; }
+.card .glabel { font-size:11.5px; letter-spacing:0.06em; color:var(--label); font-weight:600; text-transform:uppercase; }
+.card .gtitle { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); font-size:16.5px; line-height:1.28; }
+
+.path-card { text-align:left; align-items:flex-start; gap:8px; padding:26px 22px; }
+.path-card .dot { width:12px; height:12px; border-radius:50%; background:var(--moss); margin-bottom:6px; }
+.path-card:nth-child(2) .dot { background:var(--amber); }
+.path-card:nth-child(3) .dot { background:var(--navy-soft); }
+.path-card p { margin:4px 0 10px; color:var(--sub); font-size:15px; }
+.go { font-weight:600; color:var(--navy); border-bottom:2px solid var(--amber); font-size:14px; }
+
+.field { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.field .lab { color:var(--label); font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; margin-bottom:4px; }
+.field p { margin:0; color:var(--text); font-size:15px; }
+
+ul.points { list-style:none; padding:0; margin:0; max-width:64ch; }
+ul.points li { position:relative; padding-left:22px; margin-bottom:12px; color:var(--text); }
+ul.points li::before { content:""; position:absolute; left:0; top:9px; width:7px; height:7px; border-radius:50%; background:var(--amber); }
+
+.cta { background:var(--navy); color:#F3F6FA; border-radius:14px; padding:38px 32px; margin:8px 0 56px; }
+.cta h2 { color:#F3F6FA; }
+.cta p { color:#C7D4E3; max-width:56ch; margin:0 0 20px; }
+.btn { display:inline-block; background:var(--amber); color:#17324F; font-weight:700; text-decoration:none; padding:12px 22px; border-radius:8px; }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+
+@media (max-width:860px) {
+  .cols-6, .cols-5, .cols-4, .cols-3, .cols-2 { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:520px) {
+  .cols-6, .cols-5, .cols-4, .cols-3, .cols-2 { grid-template-columns:1fr; }
+}
+
+.detail { padding:56px 0 60px; }
+.detail .goal-number { color:var(--label); font-size:12.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px; }
+.detail .goal-title { margin-bottom:16px; }
+.detail .goal-copy { max-width:72ch; }
+.detail .goal-copy p { color:var(--sub); font-size:17px; margin:0 0 18px; }
+.back { display:inline-block; margin-top:10px; color:var(--navy); font-weight:600; text-decoration:none; border-bottom:2px solid var(--amber); }
+
+
+/* Latest Data Insights */
+.insights-section{margin-top:34px;padding-top:28px;border-top:1px solid var(--border)}
+.insights-kicker{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--label);font-weight:600;margin-bottom:7px}
+.insights-title{font-family:'Source Serif 4',Georgia,serif;color:var(--navy);font-size:1.75rem;line-height:1.2;margin:0 0 8px}
+.insights-intro{color:var(--sub);margin:0 0 18px;max-width:820px}
+.insight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.insight-card{display:block;text-decoration:none;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 18px 16px;transition:transform .15s ease,border-color .15s ease}
+.insight-card:hover{transform:translateY(-2px);border-color:var(--icon)}
+.insight-card h3{font-family:'Source Serif 4',Georgia,serif;color:var(--navy);font-size:1.18rem;line-height:1.3;margin:0 0 9px}
+.insight-card p{margin:0 0 14px;color:var(--text);font-size:.97rem}
+.insight-source{font-size:.82rem;color:var(--sub)}
+.insight-source strong{color:var(--moss)}
+@media(max-width:760px){.insight-grid{grid-template-columns:1fr}.insights-title{font-size:1.5rem}}
+
+/* SDG interactive dashboard */
+.dashboard-wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.dash-hero{padding:52px 0 30px}.dash-kicker{color:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:9px}.dash-hero h1{margin:0}.dash-hero p{max-width:72ch;color:var(--sub);font-size:17px;margin:14px 0 0}
+.dash-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}.dash-input,.dash-select{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 13px;min-height:44px}.dash-input{flex:1;min-width:240px}.dash-btn{font:inherit;font-weight:600;color:#17324F;background:var(--amber);border:0;border-radius:8px;padding:11px 16px;cursor:pointer}.dash-btn.secondary{background:var(--panel);color:var(--navy);border:1px solid var(--border)}
+.dash-section{border-top:1px solid var(--border);padding:34px 0}.dash-section h2{margin:0 0 6px}.dash-section .sub{color:var(--sub);margin:0 0 18px}.chart-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}.panel h3{margin-bottom:12px}.chart-box{position:relative;height:330px}.chart-box.tall{height:390px}.goal-pills{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.goal-pill{border:1px solid var(--border);background:transparent;color:var(--sub);border-radius:999px;padding:7px 10px;cursor:pointer}.goal-pill.on{background:var(--navy);color:var(--bg);border-color:var(--navy)}
+.compare-controls{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px}.country-list{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.country-chip{padding:7px 10px;border-radius:999px;border:1px solid var(--border);cursor:pointer;background:var(--bg);color:var(--sub)}.country-chip.on{border-color:var(--moss);color:var(--navy);font-weight:600}
+.insight-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.result-card{border:1px solid var(--border);border-radius:11px;padding:16px;background:var(--panel);text-decoration:none}.result-card h3{font-size:17px;margin-bottom:7px}.result-card p{margin:0 0 9px;color:var(--text);font-size:14px}.result-card small{color:var(--sub)}
+.news-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.news-card{border:1px solid var(--border);border-radius:11px;padding:16px;background:var(--panel);text-decoration:none}.news-card h3{font-size:16px;margin:0 0 8px;line-height:1.35}.news-card p{margin:0;color:var(--sub);font-size:13px}.news-meta{font-size:11px;color:var(--label);margin-top:10px}.status{font-size:13px;color:var(--sub);margin:8px 0}.source-note{font-size:12px;color:var(--label);margin-top:14px}.source-note a{color:var(--navy)}
+@media(max-width:850px){.chart-grid,.compare-controls{grid-template-columns:1fr}.news-grid{grid-template-columns:1fr 1fr}.insight-results{grid-template-columns:1fr}}
+@media(max-width:520px){.news-grid{grid-template-columns:1fr}.dash-hero{padding-top:38px}.dashboard-wrap{padding:0 18px}}
+</style>
+<style id="dynamic-active-tab">
+nav a.active, .nav a.active, header a.active {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 6px !important;
+}
+</style>
+</head><body><header><div class="wrap"><a class="brand" href="index.html">br<span class="ai">AI</span>ght</a><nav><a href="index.html#/schools">Schools &amp; Students</a><a href="index.html#/freshers">Freshers &amp; Job Seekers</a><a href="SDG.html" class="on">SDG Goals</a><a href="sdg-dashboard.html">SDG Dashboard</a><a href="insights.html">Data Insights</a></nav></div></header>
+<main><div class="dashboard-wrap"><section class="dash-hero"><div class="dash-kicker">Interactive SDG intelligence</div><h1>SDG Data Dashboard</h1><p>Explore trends, compare countries, search the 17 Goals and see current global news related to each Goal. The dashboard combines the site's curated evidence with live public data services.</p><div class="dash-toolbar"><input id="search" class="dash-input" type="search" placeholder="Search SDG goals, insights or topics…" aria-label="Search SDG goals and insights"><button id="clearSearch" class="dash-btn secondary">Clear</button></div></section>
+<section class="dash-section"><h2>Global SDG snapshot</h2><p class="sub">Select a Goal to see a representative World Bank indicator trend where a compatible series is available.</p><div id="goalPills" class="goal-pills"></div><div class="chart-grid"><div class="panel"><h3 id="trendTitle">Indicator trend</h3><div class="chart-box"><canvas id="trendChart"></canvas></div></div><div class="panel"><h3>How to read it</h3><p id="trendNote" class="sub">Choose a Goal above. Values are fetched from the World Bank Indicators API and represent the latest available observations.</p><div id="trendStats"></div></div></div></section>
+<section class="dash-section"><h2>Country comparison</h2><p class="sub">Compare selected countries on a Goal-relevant indicator. This is designed for quick exploration rather than ranking countries across unlike measures.</p><div class="compare-controls"><select id="indicator" class="dash-select"></select><select id="countryA" class="dash-select"></select><select id="countryB" class="dash-select"></select></div><div class="country-list" id="countryList"></div><div class="panel"><div class="chart-box"><canvas id="compareChart"></canvas></div><div id="compareStatus" class="status"></div></div></section>
+<section class="dash-section"><h2>Searchable SDG insights</h2><p class="sub">Search the latest curated insights already published across the 17 SDG pages.</p><div id="results" class="insight-results"></div></section>
+<section class="dash-section"><h2>Live SDG news</h2><p class="sub">Refreshes from GDELT's global news index. Headlines open at their original publisher. Use the Goal buttons to change the topic.</p><div id="newsPills" class="goal-pills"></div><div id="newsStatus" class="status">Loading current news…</div><div id="newsGrid" class="news-grid"></div><div class="source-note">News discovery: <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener">GDELT Project</a>. Data indicators: <a href="https://data.worldbank.org/" target="_blank" rel="noopener">World Bank</a>. Global SDG framework: <a href="https://unstats.un.org/sdgs/" target="_blank" rel="noopener">UN SDG Indicators</a>.</div></section>
+</div></main><footer><div class="wrap"><div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div><div>sagikraju@braight.in<br>+91 99084 20198 · Hyderabad, India</div></div></footer>
+<script>
+const cfg=window.SDG_CONFIG; const countries=[['IND','India'],['USA','United States'],['CHN','China'],['JPN','Japan'],['DEU','Germany'],['GBR','United Kingdom'],['BRA','Brazil'],['ZAF','South Africa'],['NGA','Nigeria'],['IDN','Indonesia'],['FRA','France'],['AUS','Australia']];
+const goalNames=cfg.goals.map(g=>`SDG ${g.goal}: ${g.title}`); let trendChart,compareChart; let selectedGoal=1; let newsGoal=1;
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+function renderPills(){document.getElementById('goalPills').innerHTML=cfg.goals.map(g=>`<button class="goal-pill ${g.goal===selectedGoal?'on':''}" data-goal="${g.goal}">SDG ${g.goal}</button>`).join('');document.querySelectorAll('#goalPills .goal-pill').forEach(b=>b.onclick=()=>{selectedGoal=+b.dataset.goal;renderPills();loadTrend();});document.getElementById('newsPills').innerHTML=cfg.goals.map(g=>`<button class="goal-pill ${g.goal===newsGoal?'on':''}" data-goal="${g.goal}">SDG ${g.goal}</button>`).join('');document.querySelectorAll('#newsPills .goal-pill').forEach(b=>b.onclick=()=>{newsGoal=+b.dataset.goal;renderPills();loadNews();});}
+function indicatorForGoal(n){return cfg.indicators.find(x=>x.goal===`SDG ${n}`)||cfg.indicators[(n-1)%cfg.indicators.length]}
+async function wb(code,country){const u=`https://api.worldbank.org/v2/country/${country}/indicator/${code}?format=json&per_page=20`;const r=await fetch(u);if(!r.ok)throw Error('World Bank request failed');const j=await r.json();return (j[1]||[]).filter(x=>x.value!==null).reverse();}
+function fmt(v,ind){if(v==null)return '—';return ind.format==='percent'?Number(v).toFixed(1)+'%':Number(v).toFixed(2);}
+async function loadTrend(){const ind=indicatorForGoal(selectedGoal);document.getElementById('trendTitle').textContent=`SDG ${selectedGoal} · ${ind.name}`;document.getElementById('trendNote').textContent=`World Bank indicator ${ind.code}. Direction: ${ind.direction==='higher'?'higher values generally indicate better access/outcomes':ind.direction==='lower'?'lower values generally indicate less deprivation/pressure':'context indicator; interpret alongside other measures'}.`;try{const rows=await wb(ind.code,'WLD');const labels=rows.map(x=>x.date),data=rows.map(x=>x.value);if(trendChart)trendChart.destroy();trendChart=new Chart(document.getElementById('trendChart'),{type:'line',data:{labels,datasets:[{label:ind.name,data,tension:.25,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}});const last=rows.at(-1),prev=rows.at(-2);document.getElementById('trendStats').innerHTML=`<div class="field"><div class="lab">Latest available</div><p>${fmt(last?.value,ind)} in ${last?.date||'—'}</p></div><br><div class="field"><div class="lab">Previous observation</div><p>${fmt(prev?.value,ind)} in ${prev?.date||'—'}</p></div>`}catch(e){document.getElementById('trendNote').textContent='The live indicator service could not be reached. The rest of the dashboard remains available.'}}
+function setupCompare(){const sel=document.getElementById('indicator');sel.innerHTML=cfg.indicators.map((x,i)=>`<option value="${i}">${x.goal} · ${x.name}</option>`).join('');[countryA,countryB].forEach((el,idx)=>{el.innerHTML=countries.map((c,i)=>`<option value="${c[0]}" ${i===idx?'selected':''}>${c[1]}</option>`).join('');el.onchange=loadCompare});document.querySelectorAll('#indicator').forEach(x=>x.onchange=loadCompare);document.getElementById('countryList').innerHTML=countries.map((c,i)=>`<button class="country-chip ${i<2?'on':''}" data-code="${c[0]}">${c[1]}</button>`).join('');document.querySelectorAll('.country-chip').forEach(b=>b.onclick=()=>{document.getElementById('countryA').value=b.dataset.code;loadCompare()});loadCompare();}
+async function loadCompare(){const ind=cfg.indicators[+document.getElementById('indicator').value],a=document.getElementById('countryA').value,b=document.getElementById('countryB').value;document.getElementById('compareStatus').textContent='Loading latest comparable observations…';try{const [ra,rb]=await Promise.all([wb(ind.code,a),wb(ind.code,b)]);const ma=new Map(ra.map(x=>[x.date,x.value])),mb=new Map(rb.map(x=>[x.date,x.value]));const years=[...ma.keys()].filter(y=>mb.has(y)).slice(-10);if(compareChart)compareChart.destroy();compareChart=new Chart(document.getElementById('compareChart'),{type:'line',data:{labels:years,datasets:[{label:countries.find(c=>c[0]===a)[1],data:years.map(y=>ma.get(y)),tension:.2},{label:countries.find(c=>c[0]===b)[1],data:years.map(y=>mb.get(y)),tension:.2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},scales:{y:{beginAtZero:false}}}});document.getElementById('compareStatus').textContent=`Indicator: ${ind.code} · unit: ${ind.unit}. Latest shared year: ${years.at(-1)||'—'}.`}catch(e){document.getElementById('compareStatus').textContent='Could not load the live comparison data. Please try again.'}}
+function renderResults(q=''){const terms=q.toLowerCase().trim();let out=[];cfg.goals.forEach(g=>g.cards.forEach(c=>{const hay=(g.title+' '+c.title+' '+c.text+' '+c.source).toLowerCase();if(!terms||hay.includes(terms))out.push({g,c});}));document.getElementById('results').innerHTML=out.slice(0,30).map(({g,c})=>`<a class="result-card" href="${esc(c.url)}" target="_blank" rel="noopener"><h3>SDG ${g.goal} · ${esc(c.title)}</h3><p>${esc(c.text)}</p><small>${esc(c.source)}</small></a>`).join('')||'<div class="panel">No matching insights found.</div>';}
+async function loadNews(){const q=cfg.newsQueries[newsGoal];const status=document.getElementById('newsStatus');status.textContent='Refreshing live headlines…';const grid=document.getElementById('newsGrid');try{const u='https://api.gdeltproject.org/api/v2/doc/doc?'+new URLSearchParams({query:q,mode:'artlist',format:'json',maxrecords:'9',timespan:'7d',sort:'datedesc'});const r=await fetch(u);if(!r.ok)throw Error('news');const j=await r.json();const arts=j.articles||[];grid.innerHTML=arts.map(a=>`<a class="news-card" href="${esc(a.url)}" target="_blank" rel="noopener"><h3>${esc(a.title||'Untitled')}</h3><p>${esc(a.domain||'News source')}</p><div class="news-meta">${esc(a.seendate||'Recent')}</div></a>`).join('')||'<div class="panel">No current articles were returned for this Goal.</div>';status.textContent=`Showing up to ${arts.length} recent results for SDG ${newsGoal}.`;}catch(e){status.textContent='Live news is temporarily unavailable from this browser/network. The dashboard and curated insights still work.';grid.innerHTML='';}}
+document.getElementById('search').oninput=e=>renderResults(e.target.value);document.getElementById('clearSearch').onclick=()=>{document.getElementById('search').value='';renderResults()};renderPills();setupCompare();renderResults();loadTrend();loadNews();
+setInterval(loadNews,30*60*1000);
+</script><script>
+(function(){
+  const path=(location.pathname.split('/').pop()||'index.html').toLowerCase();
+  document.querySelectorAll('nav a, .nav a, header a').forEach(a=>{
+    const href=(a.getAttribute('href')||'').split('#')[0].split('?')[0].toLowerCase();
+    if(!href || href.startsWith('http')) return;
+    const target=href.split('/').pop()||'index.html';
+    const isHome=(path==='index.html'||path==='')&&(target==='index.html');
+    const isMatch=target===path || (path==='sdg.html'&&target==='sdg.html');
+    a.classList.toggle('active',isHome||isMatch);
+    a.setAttribute('aria-current',(isHome||isMatch)?'page':'false');
+  });
+})();
+</script>
+</body></html>
