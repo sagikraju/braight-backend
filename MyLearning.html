@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>My Learning — brAIght</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D; --danger:#A23B3B; --ok:#2F6B34;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --danger:#E7A8A8; --ok:#A9D6AE;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --danger:#E7A8A8; --ok:#A9D6AE;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand .ai { color:var(--moss); }
+header nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; align-items:center; }
+header nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+header nav a:hover { color:var(--navy); }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; font-size:14px; }
+.logout-btn:hover { background:var(--border); }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(28px,4.4vw,40px); line-height:1.12; }
+h2 { font-size:clamp(20px,2.6vw,24px); line-height:1.2; }
+h3 { font-size:17px; line-height:1.3; }
+.lede { font-size:clamp(16px,2vw,18px); color:var(--sub); max-width:64ch; margin:14px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+.hero { padding:44px 0 24px; }
+.block { padding:26px 0; border-top:1px solid var(--border); }
+
+.card { display:flex; flex-direction:column; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:640px; }
+.card.soon { border-style:dashed; background:transparent; }
+.card p { margin:0; color:var(--sub); }
+.tag { align-self:flex-start; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 9px; }
+.noted { margin:16px 0 0; font-size:14px; color:var(--ok); min-height:1.4em; }
+
+.btn { display:inline-block; background:var(--amber); color:#17324F; font-weight:700; text-decoration:none; padding:10px 20px; border-radius:8px; font-family:inherit; font-size:15px; border:none; cursor:pointer; }
+.btn[disabled] { opacity:0.6; cursor:default; }
+.btn-small { padding:5px 12px; font-size:13.5px; border-radius:6px; font-weight:600; background:transparent; color:var(--navy); border:1px solid var(--border); }
+.btn-small:hover { background:var(--border); }
+.btn-small.danger { color:var(--danger); }
+.btn-small[disabled] { opacity:0.5; cursor:default; }
+
+.msg { display:none; padding:10px 12px; border-radius:8px; font-size:14px; margin:0 0 14px; max-width:640px; }
+.msg.error { background:#FBEAEA; border:1px solid #E3B8B8; color:#A23B3B; }
+.msg.ok { background:#EAF4EA; border:1px solid #B9D8B9; color:#2F6B34; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .msg.error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+  :root:not([data-theme="light"]) .msg.ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+}
+:root[data-theme="dark"] .msg.error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+:root[data-theme="dark"] .msg.ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+
+.upload-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 22px; max-width:760px; }
+.upload-row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+.field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.field label { font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); }
+.field select, .field input[type=file] { max-width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-family:inherit; font-size:14.5px; }
+.hint { font-size:13px; color:var(--sub); margin:12px 0 0; }
+.doc-list { list-style:none; margin:0; padding:0; display:grid; gap:10px; max-width:900px; }
+.doc { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 16px; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 16px; }
+.doc-name { font-weight:600; color:var(--navy); overflow-wrap:anywhere; }
+.doc-meta { font-size:13px; color:var(--sub); }
+.doc-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.gate { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; justify-content:center; align-items:center; padding:16px; }
+.gate.show { display:flex; }
+.gate-box { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:420px; width:100%; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
+.gate-box h3 { font-size:20px; margin:0 0 12px; }
+.gate-box p { color:var(--sub); margin:0 0 20px; font-size:15px; }
+.viewer { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; justify-content:center; align-items:center; padding:16px; }
+.viewer.show { display:flex; }
+.viewer-panel { background:var(--bg); border:1px solid var(--border); border-radius:12px; width:100%; max-width:920px; max-height:100%; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.25); }
+.viewer-head { display:flex; gap:10px; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); }
+.viewer-title { font-weight:600; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.viewer-head .doc-actions { flex-shrink:0; }
+.viewer-body { overflow:auto; padding:18px 22px; min-height:120px; }
+.viewer-body img { display:block; max-width:100%; height:auto; margin:0 auto; }
+.docx-view { font-family:Georgia,'Source Serif 4',serif; color:var(--text); line-height:1.6; overflow-wrap:anywhere; }
+.docx-view p { margin:0 0 10px; white-space:pre-wrap; }
+.docx-view h1,.docx-view h2,.docx-view h3 { margin:16px 0 8px; }
+.docx-view table { border-collapse:collapse; margin:8px 0 14px; max-width:100%; }
+.docx-view td { border:1px solid var(--border); padding:5px 9px; vertical-align:top; }
+.docx-note { font-size:13px; color:var(--sub); margin:0 0 14px; font-family:'Source Sans 3',Arial,sans-serif; }
+.empty { color:var(--sub); border:1px dashed var(--border); border-radius:12px; padding:22px; max-width:640px; }
+@media (max-width:560px) { .doc { grid-template-columns:minmax(0,1fr); } .doc-actions { justify-content:flex-start; } }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+/* ---------- My Learning ---------- */
+.ml-head { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; }
+.ml-search { flex:1 1 260px; max-width:420px; }
+.ml-search input { width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:999px; background:var(--panel); color:var(--text); font:inherit; font-size:15px; }
+.ml-search input:focus { outline:none; border-color:var(--moss); }
+.ltabs { display:flex; gap:4px; flex-wrap:wrap; margin:22px 0 0; border-bottom:1px solid var(--border); }
+.ltabs a { text-decoration:none; color:var(--sub); padding:10px 14px; border-bottom:3px solid transparent; margin-bottom:-1px; font-weight:600; font-size:15px; white-space:nowrap; }
+.ltabs a:hover { color:var(--navy); }
+.ltabs a[aria-current="page"] { color:var(--navy); border-bottom-color:var(--amber); }
+.ltabs .count { font-size:12px; font-weight:600; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:0 7px; margin-left:6px; }
+.lsec { padding:26px 0 6px; }
+.lsec > h2 { margin:0 0 4px; }
+.lsec > .sub { color:var(--sub); margin:0 0 16px; font-size:15px; max-width:70ch; }
+.lgrid { list-style:none; margin:0; padding:0; display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
+.lcard { display:flex; flex-direction:column; gap:8px; height:100%; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+.lcard h3 { font-size:17px; margin:2px 0 0; }
+.lc-meta { font-size:13px; color:var(--sub); }
+.lc-desc { margin:0; color:var(--sub); font-size:14.5px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; flex:1; }
+.lc-chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.chip { font-size:11.5px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 9px; }
+.chip.brand { color:var(--navy); border-color:var(--amber); background:rgba(200,155,92,0.2); }
+.chip.ok { color:var(--ok); border-color:var(--ok); }
+.chip.prog { color:var(--navy); border-color:var(--moss); }
+.lc-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:6px; }
+.btn.small { padding:7px 14px; font-size:14px; }
+.tbtn { background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 12px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; }
+.tbtn:hover { background:var(--border); }
+.tbtn[aria-pressed="true"] { background:var(--navy); color:var(--bg); border-color:var(--navy); }
+.tbtn[disabled] { opacity:0.55; cursor:default; }
+.lc-bar { height:6px; background:var(--border); border-radius:999px; overflow:hidden; }
+.lc-bar span { display:block; height:100%; background:var(--moss); }
+.tstrip { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 14px; }
+.tstrip button { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:999px; padding:5px 14px; font:inherit; font-size:14px; cursor:pointer; }
+.tstrip button[aria-pressed="true"] { background:var(--navy); color:var(--bg); border-color:var(--navy); }
+.trend-list { list-style:none; margin:0; padding:0; display:grid; gap:10px; max-width:900px; }
+.trend { display:flex; gap:14px; align-items:flex-start; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 16px; }
+.trend .rank { flex:0 0 28px; height:28px; border-radius:50%; background:var(--navy); color:var(--bg); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; }
+.trend a { color:var(--navy); font-weight:600; text-decoration:none; border-bottom:2px solid var(--amber); overflow-wrap:anywhere; }
+.trend .meta { font-size:13px; color:var(--sub); margin-top:3px; }
+.note-sm { font-size:13px; color:var(--sub); margin:12px 0 0; max-width:70ch; }
+.emptybox { border:1px dashed var(--border); border-radius:12px; padding:22px; color:var(--sub); max-width:680px; }
+.emptybox h3 { margin:0 0 6px; }
+.emptybox a { color:var(--navy); font-weight:600; border-bottom:2px solid var(--amber); text-decoration:none; }
+.stats { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin:0 0 8px; }
+.stat { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+.stat b { display:block; font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--navy); line-height:1.1; }
+.stat span { font-size:12.5px; color:var(--label); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; }
+.timeline { list-style:none; margin:0; padding:0 0 0 14px; border-left:2px solid var(--border); max-width:760px; }
+.timeline li { position:relative; padding:0 0 14px 18px; }
+.timeline li::before { content:""; position:absolute; left:-22px; top:6px; width:10px; height:10px; border-radius:50%; background:var(--amber); }
+.timeline li.done::before { background:var(--moss); }
+.timeline .when { font-size:12.5px; color:var(--label); display:block; }
+.flashbar { position:sticky; top:70px; z-index:4; background:var(--panel); border:1px solid #A23B3B; color:#A23B3B; border-radius:8px; padding:8px 12px; font-size:14px; margin:12px 0 0; display:none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .flashbar { color:#E7A8A8; border-color:#E7A8A8; } }
+:root[data-theme="dark"] .flashbar { color:#E7A8A8; border-color:#E7A8A8; }
+/* course view */
+.back { display:inline-block; margin:22px 0 6px; color:var(--navy); font-weight:600; text-decoration:none; border-bottom:2px solid var(--amber); }
+.cview { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:24px; align-items:start; margin-top:12px; }
+.player { width:100%; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; }
+.player iframe, .player video { width:100%; height:100%; border:0; display:block; }
+.player.audio { aspect-ratio:auto; background:var(--panel); border:1px solid var(--border); padding:18px; }
+.player audio { width:100%; }
+.player.article { aspect-ratio:auto; background:var(--panel); border:1px solid var(--border); padding:24px; }
+.player .hold { color:#ccc; padding:20px; text-align:center; }
+.lessons { list-style:none; margin:0; padding:0; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--panel); }
+.lessons li { display:flex; gap:10px; align-items:flex-start; padding:11px 14px; border-bottom:1px solid var(--border); }
+.lessons li:last-child { border-bottom:none; }
+.lessons li.cur { background:var(--bg); box-shadow:inset 3px 0 0 var(--amber); }
+.lessons input { margin-top:4px; width:17px; height:17px; accent-color:var(--moss); flex-shrink:0; }
+.lessons button.pick { background:none; border:none; padding:0; text-align:left; font:inherit; color:var(--text); cursor:pointer; flex:1; min-width:0; }
+.lessons button.pick:hover b { text-decoration:underline; }
+.lessons .lm { display:block; font-size:12.5px; color:var(--sub); }
+@media (max-width:900px) { .cview { grid-template-columns:minmax(0,1fr); } }
+@media (max-width:560px) { .lgrid { grid-template-columns:minmax(0,1fr); } .ltabs a { padding:9px 10px; font-size:14px; } }
+
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <nav>
+      <a href="index.html#/schools">Schools &amp; Students</a>
+      <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
+      <a href="SDG.html">SDG Goals</a>
+      <a href="sdg-dashboard.html">SDG Dashboard</a>
+      <a href="insights.html">Data Insights</a>
+      <button type="button" class="logout-btn" id="logout-btn">Log Out</button>
+    </nav>
+  </div>
+</header>
+
+<div class="user-layout">
+  <aside id="user-nav"></aside>
+  <main id="app">
+    <div class="wrap"><p class="lede">Loading…</p></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script src="user-nav.js?v=1"></script>
+<script src="admin-session.js?v=3"></script>
+<script src="user-page.js?v=1"></script>
+<script>
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+UserPage.start(function (user, root) {
+  var TOPICS = { python: 'Python', genai: 'Gen AI', data: 'Data', other: 'Other' };
+  var LEVELS = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
+  var TABS = [
+    { id: 'discover', label: 'Discover' },
+    { id: 'journey', label: 'My Journey' },
+    { id: 'saved', label: 'Saved' },
+    { id: 'subscribed', label: 'Subscribed' },
+    { id: 'braight', label: 'Braight Courses' }
+  ];
+
+  var items = [];            // courses with this user's state
+  var trending = null;       // { topics: {python:[], genai:[]}, available } or null while loading
+  var trendTopic = 'python';
+  var topicFilter = 'all';
+  var query = '';
+  var lessonsByItem = {};    // item id -> [lessons] (course view)
+  var currentLessonId = null;
+  var loaded = false, loadError = false;
+
+  root.innerHTML =
+    '<div class="wrap">' +
+      '<div class="hero" style="padding-bottom:0"><div class="kicker">My Learning</div>' +
+      '<div class="ml-head"><h1>Keep learning</h1>' +
+      '<div class="ml-search"><label class="sr-only" for="ml-q" style="position:absolute;left:-9999px">Search courses</label>' +
+      '<input type="search" id="ml-q" placeholder="Search courses and topics" autocomplete="off" maxlength="80"></div></div>' +
+      '<p class="lede">Trending reads, good courses from around the web, and our own brAIght courses, all in one place.</p></div>' +
+      '<nav class="ltabs" id="ltabs" aria-label="My Learning sections"></nav>' +
+      '<div class="flashbar" id="flashbar" role="alert"></div>' +
+      '<div id="ml-body"><p class="lede">Loading…</p></div>' +
+    '</div>';
+
+  var body = document.getElementById('ml-body');
+  var tabsEl = document.getElementById('ltabs');
+  var flashEl = document.getElementById('flashbar');
+  var flashTimer = null;
+  function flash(msg) {
+    flashEl.textContent = msg; flashEl.style.display = 'block';
+    clearTimeout(flashTimer); flashTimer = setTimeout(function () { flashEl.style.display = 'none'; }, 5000);
+  }
+
+  /* ---------- helpers ---------- */
+  function byId(id) { for (var i = 0; i < items.length; i++) if (String(items[i].id) === String(id)) return items[i]; return null; }
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function safeHttps(u) { return typeof u === 'string' && /^https:\/\/[^\s]+$/.test(u); }
+  function matches(it) {
+    if (!query) return true;
+    var hay = [it.title, it.provider, TOPICS[it.topic], it.description, LEVELS[it.level]].join(' ').toLowerCase();
+    return query.toLowerCase().split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
+  }
+  function route() {
+    var h = (location.hash || '').replace(/^#/, '');
+    var m = /^course-(\d+)$/.exec(h);
+    if (m) return { tab: 'braight', course: m[1] };
+    return { tab: TABS.some(function (t) { return t.id === h; }) ? h : 'discover', course: null };
+  }
+
+  /* ---------- tabs ---------- */
+  function drawTabs(active) {
+    var saved = items.filter(function (i) { return i.saved; }).length;
+    var subs = items.filter(function (i) { return i.subscribed; }).length;
+    tabsEl.innerHTML = TABS.map(function (t) {
+      var n = t.id === 'saved' ? saved : t.id === 'subscribed' ? subs : null;
+      return '<a href="#' + t.id + '"' + (t.id === active ? ' aria-current="page"' : '') + '>' + esc(t.label) +
+        (n ? '<span class="count">' + n + '</span>' : '') + '</a>';
+    }).join('');
+  }
+
+  /* ---------- cards ---------- */
+  function statusChip(it) {
+    if (it.status === 'completed') return '<span class="chip ok">Completed</span>';
+    if (it.status === 'in_progress') return '<span class="chip prog">In progress</span>';
+    return '';
+  }
+  function card(it) {
+    var meta = [it.provider, it.duration, it.price].filter(Boolean).map(esc).join(' · ');
+    var action;
+    if (it.kind === 'braight') {
+      action = it.lessonCount > 0
+        ? '<a class="btn small" href="#course-' + esc(it.id) + '">' + (it.status === 'in_progress' ? 'Continue' : it.status === 'completed' ? 'Review' : 'Start course') + '</a>'
+        : '<span class="chip">Lessons coming soon</span>';
+    } else {
+      action = safeHttps(it.url)
+        ? '<a class="btn small" data-act="open" href="' + esc(it.url) + '" target="_blank" rel="noopener noreferrer">Open course ↗</a>'
+        : '';
+    }
+    var bar = '';
+    if (it.kind === 'braight' && it.lessonCount > 0) {
+      var pct = Math.round(it.doneCount / it.lessonCount * 100);
+      bar = '<div class="lc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Progress"><span style="width:' + pct + '%"></span></div>' +
+            '<div class="lc-meta">' + it.doneCount + ' of ' + it.lessonCount + ' lessons done</div>';
+    }
+    var finish = it.kind === 'external'
+      ? '<button type="button" class="tbtn" data-act="finish">' + (it.status === 'completed' ? 'Completed ✓ Undo' : 'Mark as completed') + '</button>' : '';
+    return '<li><article class="lcard" data-id="' + esc(it.id) + '">' +
+      '<div class="lc-chips">' +
+        (it.kind === 'braight' ? '<span class="chip brand">brAIght</span>' : '') +
+        '<span class="chip">' + esc(TOPICS[it.topic] || it.topic) + '</span>' +
+        '<span class="chip">' + esc(LEVELS[it.level] || it.level) + '</span>' + statusChip(it) + '</div>' +
+      '<h3>' + esc(it.title) + '</h3>' +
+      (meta ? '<div class="lc-meta">' + meta + '</div>' : '') +
+      (it.description ? '<p class="lc-desc">' + esc(it.description) + '</p>' : '') + bar +
+      '<div class="lc-actions">' + action +
+        '<button type="button" class="tbtn" data-act="save" aria-pressed="' + it.saved + '">' + (it.saved ? 'Saved' : 'Save') + '</button>' +
+        '<button type="button" class="tbtn" data-act="subscribe" aria-pressed="' + it.subscribed + '">' + (it.subscribed ? 'Subscribed' : 'Subscribe') + '</button>' +
+        finish +
+      '</div></article></li>';
+  }
+  function grid(list) { return '<ul class="lgrid">' + list.map(card).join('') + '</ul>'; }
+  function empty(title, text, linkHref, linkText) {
+    return '<div class="emptybox"><h3>' + esc(title) + '</h3><p style="margin:0">' + esc(text) + '</p>' +
+      (linkHref ? '<p style="margin:10px 0 0"><a href="' + linkHref + '">' + esc(linkText) + '</a></p>' : '') + '</div>';
+  }
+
+  /* ---------- Discover ---------- */
+  function trendHtml() {
+    var head = '<section class="lsec"><h2>Trending now</h2><p class="sub">Popular articles from the past week on Python and generative AI.</p>';
+    if (trending === null) return head + '<p class="sub">Loading trending articles…</p></section>';
+    var list = ((trending.topics || {})[trendTopic] || []).filter(function (a) {
+      return !query || (a.title || '').toLowerCase().indexOf(query.toLowerCase()) !== -1;
+    });
+    var strip = '<div class="tstrip" role="group" aria-label="Trending topic">' +
+      [['python', 'Python'], ['genai', 'Gen AI']].map(function (t) {
+        return '<button type="button" data-trend="' + t[0] + '" aria-pressed="' + (trendTopic === t[0]) + '">' + t[1] + '</button>';
+      }).join('') + '</div>';
+    var out = head + strip;
+    if (!trending.available) {
+      out += '<div class="emptybox">Trending articles are not available right now. Please check back a little later.</div>';
+    } else if (!list.length) {
+      out += '<div class="emptybox">No trending articles match your search.</div>';
+    } else {
+      out += '<ol class="trend-list">' + list.map(function (a, i) {
+        var bits = ['DEV Community'];
+        if (a.author) bits.push(esc(a.author));
+        if (a.publishedAt) bits.push(esc(fmtDate(a.publishedAt)));
+        if (a.readMinutes) bits.push(a.readMinutes + ' min read');
+        if (a.reactions) bits.push(a.reactions + ' reactions');
+        return '<li class="trend"><span class="rank" aria-hidden="true">' + (i + 1) + '</span><div>' +
+          (safeHttps(a.url) ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener noreferrer">' + esc(a.title) + ' ↗</a>' : esc(a.title)) +
+          '<div class="meta">' + bits.join(' · ') + '</div></div></li>';
+      }).join('') + '</ol>';
+    }
+    return out + '<p class="note-sm">These are public articles written by other people. Links open on another website, outside brAIght.</p></section>';
+  }
+
+  function viewDiscover() {
+    var html = '';
+    var cont = items.filter(function (i) { return i.status === 'in_progress'; }).filter(matches).slice(0, 3);
+    if (cont.length) html += '<section class="lsec"><h2>Continue learning</h2><p class="sub">Pick up where you left off.</p>' + grid(cont) + '</section>';
+    html += trendHtml();
+    var courses = items.filter(function (i) { return i.kind === 'external'; });
+    var shown = courses.filter(function (i) { return (topicFilter === 'all' || i.topic === topicFilter) && matches(i); });
+    html += '<section class="lsec"><h2>Courses from around the web</h2><p class="sub">A hand-picked list of good online courses. They open on the provider\'s own website.</p>' +
+      '<div class="tstrip" role="group" aria-label="Filter by topic">' +
+      [['all', 'All'], ['python', 'Python'], ['genai', 'Gen AI'], ['data', 'Data']].map(function (t) {
+        return '<button type="button" data-topic="' + t[0] + '" aria-pressed="' + (topicFilter === t[0]) + '">' + t[1] + '</button>';
+      }).join('') + '</div>' +
+      (shown.length ? grid(shown) : empty(courses.length ? 'No courses match' : 'No courses yet', courses.length ? 'Try a different topic or search.' : 'Courses will be added here soon.')) +
+      '</section>';
+    return html;
+  }
+
+  /* ---------- Journey ---------- */
+  function viewJourney() {
+    var inprog = items.filter(function (i) { return i.status === 'in_progress'; });
+    var done = items.filter(function (i) { return i.status === 'completed'; });
+    var saved = items.filter(function (i) { return i.saved; });
+    var subs = items.filter(function (i) { return i.subscribed; });
+    var html = '<section class="lsec"><div class="stats">' +
+      [[inprog.length, 'In progress'], [done.length, 'Completed'], [saved.length, 'Saved'], [subs.length, 'Subscribed']].map(function (s) {
+        return '<div class="stat"><b>' + s[0] + '</b><span>' + s[1] + '</span></div>';
+      }).join('') + '</div></section>';
+    if (!inprog.length && !done.length && !saved.length && !subs.length) {
+      return html + '<section class="lsec">' + empty('Your journey starts here', 'Open a course, save one for later or subscribe, and it will show up here.', '#discover', 'Find something to learn') + '</section>';
+    }
+    var events = [];
+    items.forEach(function (it) {
+      if (it.completedAt) events.push({ at: it.completedAt, text: 'Completed ', it: it, done: true });
+      if (it.startedAt) events.push({ at: it.startedAt, text: 'Started ', it: it });
+      if (it.subscribedAt && it.subscribed) events.push({ at: it.subscribedAt, text: 'Subscribed to ', it: it });
+      if (it.savedAt && it.saved) events.push({ at: it.savedAt, text: 'Saved ', it: it });
+    });
+    events.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
+    if (inprog.length) html += '<section class="lsec"><h2>In progress</h2>' + grid(inprog) + '</section>';
+    if (events.length) {
+      html += '<section class="lsec"><h2>Your activity</h2><ol class="timeline">' + events.slice(0, 20).map(function (e) {
+        return '<li' + (e.done ? ' class="done"' : '') + '><span class="when">' + esc(fmtDate(e.at)) + '</span>' + esc(e.text) + '<strong>' + esc(e.it.title) + '</strong></li>';
+      }).join('') + '</ol></section>';
+    }
+    if (done.length) html += '<section class="lsec"><h2>Completed</h2>' + grid(done) + '</section>';
+    return html;
+  }
+
+  function viewList(kind) {
+    var list = items.filter(function (i) { return i[kind]; }).filter(matches);
+    var all = items.filter(function (i) { return i[kind]; });
+    var title = kind === 'saved' ? 'Saved for later' : 'Courses you subscribed to';
+    var sub = kind === 'saved' ? 'Courses you saved to come back to.' : 'Courses you follow. New lessons for subscribed brAIght courses will show up here first.';
+    var html = '<section class="lsec"><h2>' + title + '</h2><p class="sub">' + sub + '</p>';
+    if (!all.length) html += empty(kind === 'saved' ? 'Nothing saved yet' : 'No subscriptions yet', kind === 'saved' ? 'Use Save on any course to keep it here.' : 'Use Subscribe on any course to follow it.', '#discover', 'Browse courses');
+    else if (!list.length) html += empty('No matches', 'Nothing here matches your search.');
+    else html += grid(list);
+    return html + '</section>';
+  }
+
+  /* ---------- Braight courses ---------- */
+  function viewBraight() {
+    var all = items.filter(function (i) { return i.kind === 'braight'; });
+    var list = all.filter(matches);
+    var html = '<section class="lsec"><h2>Braight Courses</h2><p class="sub">Courses designed by brAIght: videos and podcasts you can follow at your own pace.</p>';
+    if (!all.length) html += empty('Our own courses are on the way', 'We are designing brAIght courses with videos and podcasts. Check back soon.');
+    else if (!list.length) html += empty('No matches', 'Nothing here matches your search.');
+    else html += grid(list);
+    return html + '</section>';
+  }
+
+  /* ---------- Course view (lessons + player) ---------- */
+  function ytId(u) {
+    try {
+      var x = new URL(u), h = x.hostname.replace(/^www\.|^m\./, '');
+      var id = null;
+      if (h === 'youtu.be') id = x.pathname.slice(1).split('/')[0];
+      else if (h === 'youtube.com' || h === 'youtube-nocookie.com') id = x.searchParams.get('v') || (/^\/(embed|shorts|live)\/([^/]+)/.exec(x.pathname) || [])[2];
+      return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+    } catch (e) { return null; }
+  }
+  function embedFor(u) {
+    var y = ytId(u);
+    if (y) return 'https://www.youtube-nocookie.com/embed/' + y;
+    try {
+      var x = new URL(u), h = x.hostname.replace(/^www\./, '');
+      var v = h === 'vimeo.com' ? /^\/(\d+)/.exec(x.pathname) : h === 'player.vimeo.com' ? /^\/video\/(\d+)/.exec(x.pathname) : null;
+      if (v) return 'https://player.vimeo.com/video/' + v[1];
+      var s = h === 'open.spotify.com' ? /^\/(?:embed\/)?(episode|show)\/([A-Za-z0-9]{22})/.exec(x.pathname) : null;
+      if (s) return 'https://open.spotify.com/embed/' + s[1] + '/' + s[2];
+    } catch (e) { /* not a URL */ }
+    return null;
+  }
+  function playableSrc(u) { return safeHttps(u) || /^media\/[A-Za-z0-9][A-Za-z0-9._ \-\/]*$/.test(u) && u.indexOf('..') === -1; }
+
+  function renderPlayer(lesson, onEnded) {
+    var box = document.getElementById('player');
+    box.className = 'player'; box.textContent = '';
+    var u = lesson.mediaUrl, el;
+    if (!playableSrc(u)) { box.textContent = 'This lesson cannot be shown.'; return; }
+    var embed = lesson.mediaType !== 'article' ? embedFor(u) : null;
+    if (embed) {
+      el = document.createElement('iframe');
+      el.src = embed; el.title = lesson.title; el.loading = 'lazy';
+      el.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+      el.allowFullscreen = true; el.referrerPolicy = 'strict-origin-when-cross-origin';
+      if (/spotify/.test(embed)) { box.classList.add('audio'); el.style.height = '232px'; }
+    } else if (lesson.mediaType === 'video') {
+      el = document.createElement('video'); el.controls = true; el.preload = 'metadata'; el.playsInline = true; el.src = u;
+      el.addEventListener('ended', onEnded);
+    } else if (lesson.mediaType === 'audio') {
+      box.classList.add('audio');
+      el = document.createElement('audio'); el.controls = true; el.preload = 'metadata'; el.src = u;
+      el.addEventListener('ended', onEnded);
+    } else {
+      box.classList.add('article');
+      el = document.createElement('a'); el.className = 'btn'; el.textContent = 'Read the article ↗';
+      el.href = u; el.target = '_blank'; el.rel = 'noopener noreferrer';
+    }
+    box.appendChild(el);
+  }
+
+  async function viewCourse(id) {
+    var it = byId(id);
+    if (!it || it.kind !== 'braight') return '<a class="back" href="#braight">← Braight Courses</a>' + empty('Course not found', 'This course is no longer available.');
+    var lessons = lessonsByItem[id];
+    if (!lessons) {
+      body.innerHTML = '<a class="back" href="#braight">← Braight Courses</a><p class="lede">Loading lessons…</p>';
+      try {
+        var res = await AppSession.apiFetch('/api/learning/' + encodeURIComponent(id) + '/lessons');
+        if (AppSession.isEnded()) return null;
+        if (!res.ok) throw new Error('x');
+        lessons = lessonsByItem[id] = (await res.json()).lessons || [];
+      } catch (e) {
+        if (AppSession.isEnded()) return null;
+        return '<a class="back" href="#braight">← Braight Courses</a>' + empty('Could not load the lessons', 'Please try again in a moment.');
+      }
+    }
+    if (route().course !== String(id)) return null;           // user moved on while loading
+    if (!lessons.length) return '<a class="back" href="#braight">← Braight Courses</a>' + empty('Lessons coming soon', 'This course has no lessons yet.');
+    if (!lessons.some(function (l) { return l.id === currentLessonId; })) {
+      var firstOpen = lessons.filter(function (l) { return !l.done; })[0] || lessons[0];
+      currentLessonId = firstOpen.id;
+    }
+    var cur = lessons.filter(function (l) { return l.id === currentLessonId; })[0];
+    var pct = lessons.length ? Math.round(lessons.filter(function (l) { return l.done; }).length / lessons.length * 100) : 0;
+    return '<a class="back" href="#braight">← Braight Courses</a>' +
+      '<div class="cview"><div>' +
+        '<div class="player" id="player"></div>' +
+        '<h2 style="margin:16px 0 4px" id="lesson-title">' + esc(cur.title) + '</h2>' +
+        '<div class="lc-meta">' + esc(it.title) + (cur.durationMin ? ' · ' + cur.durationMin + ' min' : '') + '</div>' +
+        (cur.description ? '<p style="color:var(--sub)">' + esc(cur.description) + '</p>' : '') +
+        '<p><button type="button" class="tbtn" id="lesson-done" aria-pressed="' + cur.done + '">' + (cur.done ? 'Completed ✓ Undo' : 'Mark lesson as complete') + '</button></p>' +
+        (it.description ? '<p class="note-sm">' + esc(it.description) + '</p>' : '') +
+      '</div><div><div class="lc-bar" id="course-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Course progress" style="margin-bottom:8px"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="lc-meta" id="course-count" style="margin-bottom:10px">' + lessons.filter(function (l) { return l.done; }).length + ' of ' + lessons.length + ' lessons done</div>' +
+      '<ol class="lessons">' + lessons.map(function (l, i) {
+        return '<li' + (l.id === currentLessonId ? ' class="cur"' : '') + ' data-lesson="' + esc(l.id) + '">' +
+          '<input type="checkbox" data-done="' + esc(l.id) + '"' + (l.done ? ' checked' : '') + ' aria-label="Mark lesson ' + (i + 1) + ' as complete">' +
+          '<button type="button" class="pick" data-pick="' + esc(l.id) + '"><b>' + (i + 1) + '. ' + esc(l.title) + '</b>' +
+          '<span class="lm">' + esc({ video: 'Video', audio: 'Podcast', article: 'Article' }[l.mediaType] || '') + (l.durationMin ? ' · ' + l.durationMin + ' min' : '') + '</span></button></li>';
+      }).join('') + '</ol></div></div>';
+  }
+
+  /* ---------- state changes ---------- */
+  async function setState(id, patch) {
+    var it = byId(id); if (!it) return;
+    var before = {}; Object.keys(patch).forEach(function (k) { before[k] = it[k]; });
+    Object.keys(patch).forEach(function (k) { it[k] = patch[k]; });
+    draw(true);
+    try {
+      var res = await AppSession.apiFetch('/api/learning/' + encodeURIComponent(id) + '/state', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch)
+      });
+      if (AppSession.isEnded()) return;
+      if (!res.ok) throw new Error('save failed');
+      var s = await res.json();
+      it.saved = s.saved; it.subscribed = s.subscribed; it.status = s.status;
+      it.savedAt = s.savedAt; it.subscribedAt = s.subscribedAt; it.startedAt = s.startedAt; it.completedAt = s.completedAt;
+      draw(true);
+    } catch (e) {
+      if (AppSession.isEnded()) return;
+      Object.keys(before).forEach(function (k) { it[k] = before[k]; });
+      draw(true);
+      flash('We could not save that change. Please check your connection and try again.');
+    }
+  }
+
+  async function setLessonDone(lessonId, done) {
+    var r = route(); var lessons = lessonsByItem[r.course] || [];
+    var l = lessons.filter(function (x) { return x.id === lessonId; })[0]; var it = byId(r.course);
+    if (!l || !it || l.done === done) return;
+    l.done = done; updateCourseUI();
+    try {
+      var res = await AppSession.apiFetch('/api/learning/lessons/' + encodeURIComponent(lessonId) + '/done', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: done })
+      });
+      if (AppSession.isEnded()) return;
+      if (!res.ok) throw new Error('x');
+      var s = await res.json();
+      it.status = s.status; it.doneCount = s.doneCount; it.lessonCount = s.lessonCount;
+      if (s.status === 'completed' && !it.completedAt) it.completedAt = new Date().toISOString();
+      if (s.status !== 'completed') it.completedAt = null;
+      if (s.status !== 'none' && !it.startedAt) it.startedAt = new Date().toISOString();
+      updateCourseUI();
+    } catch (e) {
+      if (AppSession.isEnded()) return;
+      l.done = !done; updateCourseUI();
+      flash('We could not save that change. Please check your connection and try again.');
+    }
+  }
+
+  // Ticking a lesson updates the page in place, so a playing video is not restarted.
+  function updateCourseUI() {
+    var r = route(); if (!r.course) return;
+    var lessons = lessonsByItem[r.course] || [];
+    var n = 0;
+    Array.prototype.forEach.call(body.querySelectorAll('input[data-done]'), function (cb) {
+      var l = lessons.filter(function (x) { return String(x.id) === cb.dataset.done; })[0];
+      if (l) { cb.checked = l.done; if (l.done) n++; }
+    });
+    var cur = lessons.filter(function (l) { return l.id === currentLessonId; })[0];
+    var btn = document.getElementById('lesson-done');
+    if (btn && cur) { btn.textContent = cur.done ? 'Completed ✓ Undo' : 'Mark lesson as complete'; btn.setAttribute('aria-pressed', cur.done); }
+    var pct = lessons.length ? Math.round(n / lessons.length * 100) : 0;
+    var bar = document.getElementById('course-bar');
+    if (bar) { bar.setAttribute('aria-valuenow', pct); bar.firstChild.style.width = pct + '%'; }
+    var cnt = document.getElementById('course-count');
+    if (cnt) cnt.textContent = n + ' of ' + lessons.length + ' lessons done';
+  }
+
+  /* ---------- drawing ---------- */
+  async function draw(keepScroll) {
+    if (!loaded) return;
+    var r = route();
+    var y = window.scrollY;
+    drawTabs(r.tab);
+    var html;
+    if (loadError) html = empty('We could not load your learning page', 'Please refresh the page to try again.');
+    else if (r.course) { html = await viewCourse(r.course); if (html === null) return; }
+    else if (r.tab === 'journey') html = viewJourney();
+    else if (r.tab === 'saved') html = viewList('saved');
+    else if (r.tab === 'subscribed') html = viewList('subscribed');
+    else if (r.tab === 'braight') html = viewBraight();
+    else html = viewDiscover();
+    body.innerHTML = html;
+    if (r.course) {
+      var lessons = lessonsByItem[r.course] || [];
+      var cur = lessons.filter(function (l) { return l.id === currentLessonId; })[0];
+      if (cur && document.getElementById('player')) renderPlayer(cur, function () { setLessonDone(cur.id, true); });
+    }
+    if (keepScroll) window.scrollTo(0, y);
+  }
+
+  window.addEventListener('hashchange', function () { if (!AppSession.isEnded()) { currentLessonId = null; draw(false); window.scrollTo(0, 0); } });
+
+  document.getElementById('ml-q').addEventListener('input', function (e) {
+    query = e.target.value.trim();
+    var r = route();
+    if (r.course) { location.hash = '#discover'; return; }
+    draw(true);
+  });
+
+  body.addEventListener('click', function (e) {
+    var t = e.target.closest('button, a');
+    if (!t) return;
+    if (t.dataset.trend) { trendTopic = t.dataset.trend; draw(true); return; }
+    if (t.dataset.topic) { topicFilter = t.dataset.topic; draw(true); return; }
+    if (t.dataset.pick) { currentLessonId = Number(t.dataset.pick); draw(true);
+      var it0 = byId(route().course); if (it0 && it0.status === 'none') setState(it0.id, { status: 'in_progress' }); return; }
+    if (t.id === 'lesson-done') {
+      var ls = lessonsByItem[route().course] || [];
+      var c = ls.filter(function (l) { return l.id === currentLessonId; })[0];
+      if (c) setLessonDone(c.id, !c.done);
+      return;
+    }
+    var cardEl = t.closest('.lcard');
+    if (!cardEl) return;
+    var id = cardEl.dataset.id, it = byId(id); if (!it) return;
+    var act = t.dataset.act;
+    if (act === 'save') setState(id, { saved: !it.saved });
+    else if (act === 'subscribe') setState(id, { subscribed: !it.subscribed });
+    else if (act === 'finish') setState(id, { status: it.status === 'completed' ? 'in_progress' : 'completed' });
+    else if (act === 'open' && it.status === 'none') setTimeout(function () { setState(id, { status: 'in_progress' }); }, 0);   // the link still opens normally
+  });
+  body.addEventListener('change', function (e) {
+    var box = e.target;
+    if (box && box.dataset && box.dataset.done) setLessonDone(Number(box.dataset.done), box.checked);
+  });
+
+  /* ---------- load ---------- */
+  (async function load() {
+    try {
+      var res = await AppSession.apiFetch('/api/learning');
+      if (AppSession.isEnded()) return;
+      if (!res.ok) throw new Error('load');
+      items = (await res.json()).items || [];
+    } catch (e) {
+      if (AppSession.isEnded()) return;
+      loadError = true;
+    }
+    loaded = true;
+    draw(false);
+    // Trending comes from another website, so it can be slow: show the page first, fill it in after.
+    try {
+      var tr = await AppSession.apiFetch('/api/learning/trending');
+      if (AppSession.isEnded()) return;
+      trending = tr.ok ? await tr.json() : { topics: {}, available: false };
+    } catch (e) {
+      if (AppSession.isEnded()) return;
+      trending = { topics: {}, available: false };
+    }
+    if (route().tab === 'discover' && !route().course) draw(true);
+  })();
+});
+</script>
+</body>
+</html>
