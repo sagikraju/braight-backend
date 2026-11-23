@@ -56,7 +56,7 @@ h1 { font-family:'Source Serif 4',Georgia,serif; font-size:28px; color:var(--nav
 
 .table-container { width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
 table { width:100%; border-collapse:collapse; text-align:left; font-size:14.5px; }
-th, td { padding:14px 18px; border-bottom:1px solid var(--border); }
+th, td { padding:14px 10px; border-bottom:1px solid var(--border); }
 th { background:var(--navy); color:#FFFFFF; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:0.03em; }
 :root[data-theme="dark"] th { color:#101823; }
 @media (prefers-color-scheme: dark) {
@@ -105,7 +105,7 @@ footer b { color:var(--navy); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge.red { color:#E7A8A8; border-color:#E7A8A8; } }
 :root[data-theme="dark"] .badge.red { color:#E7A8A8; border-color:#E7A8A8; }
 td .sub { display:block; font-size:12.5px; color:var(--sub); }
-td.actions { white-space:nowrap; text-align:right; }
+td.actions { white-space:nowrap; text-align:right; padding-right:12px; }
 .empty { text-align:center; color:var(--sub); }
 .err { color:#A23B3B; }
 .meter { height:6px; width:110px; background:var(--border); border-radius:999px; overflow:hidden; margin-top:4px; }
@@ -145,6 +145,15 @@ td.actions { white-space:nowrap; text-align:right; }
 .how { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:13.5px; color:var(--sub); margin:0 0 14px; }
 .how b { color:var(--navy); }
 .btn-danger { color:#A23B3B; }
+.btn-icon { padding:5px 8px; line-height:0; vertical-align:middle; }
+.btn-icon svg { width:16px; height:16px; display:block; }
+.btn-danger.armed { background:#A23B3B; color:#fff; border-color:#A23B3B; line-height:1.2; padding:5px 10px; }
+.upl { border:1px dashed var(--border); border-radius:10px; padding:12px; }
+.upl .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.upl .bar { height:8px; border-radius:99px; background:var(--row-alt); overflow:hidden; margin-top:10px; display:none; }
+.upl .bar > i { display:block; height:100%; width:0; background:var(--moss); transition:width .15s; }
+.upl .msg { font-size:13.5px; color:var(--sub); margin-top:8px; overflow-wrap:anywhere; }
+.upl .msg.ok { color:var(--green); } .upl .msg.err { color:#A23B3B; }
 </style>
 </head>
 <body>
@@ -201,6 +210,7 @@ td.actions { white-space:nowrap; text-align:right; }
               <div class="field"><label for="i-topic">Topic</label>
                 <select id="i-topic"><option value="python">Python</option><option value="genai">Gen AI</option><option value="data">Data</option><option value="other">Other</option></select></div>
               <div class="field full"><label for="i-title">Title</label><input type="text" id="i-title" maxlength="200"></div>
+              <p class="hint full" id="i-braight-hint" style="margin:0 0 4px">After you save a Braight course, a window opens where you add its videos and podcasts: upload a file or paste a link.</p>
               <div class="field full" id="i-url-wrap"><label for="i-url">Course link</label>
                 <input type="url" id="i-url" maxlength="500" placeholder="https://..."><p class="hint">The page where the course opens. Must start with https://</p></div>
               <div class="field"><label for="i-provider">Provider</label><input type="text" id="i-provider" maxlength="100" placeholder="e.g. Kaggle, brAIght"></div>
@@ -226,7 +236,7 @@ td.actions { white-space:nowrap; text-align:right; }
         <div class="modal-overlay" id="m-lessons">
           <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="m-lessons-title">
             <h3 id="m-lessons-title">Lessons</h3>
-            <div class="how"><b>How to add videos and podcasts.</b> Upload a video to YouTube (choose <b>Unlisted</b>) or Vimeo and paste its link here; paste a Spotify episode link or a direct .mp3 / .mp4 link for podcasts. Small files can also live on the website in a <b>media</b> folder and be entered as <b>media/lesson-1.mp4</b>. Anyone who has an unlisted link can open it, so do not use it for paid content.</div>
+            <div class="how"><b>How to add videos and podcasts.</b> The easiest way is to <b>upload the file</b> below (.mp4 or .webm video; .mp3, .m4a, .ogg or .wav audio; up to 200 MB each). Uploaded files are kept in the brAIght database and only logged-in learners can play them. For many viewers or long videos, YouTube is lighter on the server: upload a video to YouTube (choose <b>Unlisted</b>) or Vimeo and paste its link here; paste a Spotify episode link or a direct .mp3 / .mp4 link for podcasts. Small files can also live on the website in a <b>media</b> folder and be entered as <b>media/lesson-1.mp4</b>. Anyone who has an unlisted link can open it, so do not use it for paid content.</div>
             <ul class="lessons-admin" id="lesson-list"></ul>
             <h3 style="font-size:17px" id="l-form-title">Add a lesson</h3>
             <div class="form-error" id="l-error" role="alert"></div>
@@ -235,6 +245,13 @@ td.actions { white-space:nowrap; text-align:right; }
               <div class="field"><label for="l-type">Type</label>
                 <select id="l-type"><option value="video">Video</option><option value="audio">Podcast / audio</option><option value="article">Article (link)</option></select></div>
               <div class="field"><label for="l-pos">Order</label><input type="number" id="l-pos" min="1" value="1"></div>
+              <div class="field full upl" id="l-upload-wrap">
+                <label for="l-file">Upload a video / podcast file</label>
+                <div class="row"><input type="file" id="l-file" accept=".mp4,.webm,.mp3,.m4a,.ogg,.wav,video/mp4,video/webm,audio/mpeg,audio/mp4,audio/ogg,audio/wav">
+                  <button type="button" class="btn btn-ghost btn-small" id="l-file-clear" style="display:none">Remove file</button></div>
+                <div class="bar" id="l-bar"><i id="l-bar-i"></i></div>
+                <div class="msg" id="l-file-msg">No file chosen. Or paste a link below.</div>
+              </div>
               <div class="field full"><label for="l-url">Media link</label><input type="text" id="l-url" maxlength="500" placeholder="https://www.youtube.com/watch?v=...  or  media/lesson-1.mp4"></div>
               <div class="field"><label for="l-min">Minutes</label><input type="number" id="l-min" min="1" max="1000"></div>
               <div class="field check"><input type="checkbox" id="l-active" checked><label for="l-active">Visible to users</label></div>
@@ -327,6 +344,7 @@ let items = [];
 let editingId = null;
 let lessonItemId = null;
 let editingLessonId = null;
+const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
 const TOPICS = { python: 'Python', genai: 'Gen AI', data: 'Data', other: 'Other' };
 const AUDIENCE = { both: 'Students + Jobseekers', student: 'Students', jobseeker: 'Jobseekers' };
 
@@ -336,16 +354,38 @@ function pageInit() {
   document.getElementById('i-cancel').addEventListener('click', function () { hide('m-item'); });
   document.getElementById('i-save').addEventListener('click', saveItem);
   document.getElementById('i-kind').addEventListener('change', syncKind);
-  document.getElementById('l-close').addEventListener('click', function () { hide('m-lessons'); });
+  document.getElementById('l-close').addEventListener('click', function () { if (uploading) return; discardUpload(); hide('m-lessons'); });
   document.getElementById('l-reset').addEventListener('click', function () { resetLessonForm(); });
   document.getElementById('l-save').addEventListener('click', saveLesson);
+  document.getElementById('l-file').addEventListener('change', onFileChosen);
+  document.getElementById('l-type').addEventListener('change', syncLessonType);
+  document.getElementById('l-file-clear').addEventListener('click', function () {
+    discardUpload(); document.getElementById('l-url').value = ''; resetUploadUI();
+  });
   document.getElementById('tbody').addEventListener('click', function (e) {
+    const dl = e.target.closest('button[data-cdel]');
+    if (dl) { deleteCourse(dl); return; }
     const b = e.target.closest('button[data-edit],button[data-lessons]');
     if (!b) return;
     if (b.dataset.edit) openItem(find(b.dataset.edit)); else openLessons(find(b.dataset.lessons));
   });
   document.getElementById('lesson-list').addEventListener('click', onLessonListClick);
   load();
+}
+function deleteCourse(btn) {
+  const item = find(btn.dataset.cdel); if (!item) return;
+  if (btn.dataset.armed !== '1') {            // first click asks, second click deletes
+    btn.dataset.armed = '1'; btn.classList.add('armed'); btn.textContent = 'Delete course?';
+    btn.title = 'Click again to delete "' + item.title + '" for good';
+    setTimeout(function () { if (btn.isConnected) { btn.dataset.armed = ''; btn.classList.remove('armed'); btn.innerHTML = TRASH; btn.title = 'Delete course'; } }, 4000);
+    return;
+  }
+  btn.disabled = true;
+  api('/api/admin/learning/' + encodeURIComponent(item.id), 'DELETE').then(function (r) {
+    if (!r) return;
+    if (!r.ok) { btn.disabled = false; flash((r.data && r.data.error) || 'Could not delete the course.', 'err'); return; }
+    flash('Course deleted.', 'ok'); load();
+  });
 }
 function find(id) { return items.find(function (i) { return String(i.id) === String(id); }); }
 function setBody(msg, isError) {
@@ -373,12 +413,14 @@ function render() {
       '<td>' + esc(AUDIENCE[i.audience] || i.audience) + '</td>' +
       '<td>' + badge(i.active ? 'visible' : 'hidden', i.active ? 'green' : 'gray') + '</td>' +
       '<td>' + esc(i.subscribers) + '</td><td>' + esc(i.savers) + '</td><td>' + esc(i.completers) + '</td>' +
-      '<td class="actions">' + lessonBtn + '<button type="button" class="btn btn-ghost btn-small" data-edit="' + esc(i.id) + '">Edit</button></td></tr>';
+      '<td class="actions">' + lessonBtn + '<button type="button" class="btn btn-ghost btn-small" data-edit="' + esc(i.id) + '">Edit</button> ' +
+      '<button type="button" class="btn btn-ghost btn-small btn-danger btn-icon" data-cdel="' + esc(i.id) + '" title="Delete course" aria-label="Delete course ' + esc(i.title) + '">' + TRASH + '</button></td></tr>';
   }).join('');
 }
 
 /* ----- course form ----- */
 function syncKind() {
+  document.getElementById('i-braight-hint').style.display = val('i-kind') === 'braight' ? '' : 'none';
   const ext = document.getElementById('i-kind').value === 'external';
   document.getElementById('i-url-wrap').style.display = ext ? '' : 'none';
 }
@@ -444,7 +486,7 @@ function drawLessons() {
   ul.innerHTML = item.lessons.map(function (l) {
     return '<li><div class="t"><strong>' + esc(l.position) + '. ' + esc(l.title) + '</strong>' +
       '<small>' + esc(MEDIA[l.mediaType] || l.mediaType) + (l.durationMin ? ' · ' + esc(l.durationMin) + ' min' : '') +
-      (l.active ? '' : ' · hidden') + ' · ' + esc(l.mediaUrl) + '</small></div>' +
+      (l.active ? '' : ' · hidden') + ' · ' + esc(/^upload:/.test(l.mediaUrl) ? 'uploaded file' : l.mediaUrl) + '</small></div>' +
       '<div class="btns"><button type="button" class="btn btn-ghost btn-small" data-ledit="' + esc(l.id) + '">Edit</button>' +
       '<button type="button" class="btn btn-ghost btn-small btn-danger" data-ldel="' + esc(l.id) + '">Delete</button></div></li>';
   }).join('');
@@ -463,6 +505,7 @@ function resetLessonForm() {
   document.getElementById('l-min').value = '';
   document.getElementById('l-desc').value = '';
   document.getElementById('l-active').checked = true;
+  discardUpload(); resetUploadUI(); syncLessonType();
 }
 function onLessonListClick(e) {
   const item = find(lessonItemId); if (!item) return;
@@ -481,6 +524,8 @@ function onLessonListClick(e) {
     document.getElementById('l-min').value = l.durationMin || '';
     document.getElementById('l-desc').value = l.description || '';
     document.getElementById('l-active').checked = !!l.active;
+    discardUpload(); resetUploadUI(); syncLessonType();
+    if (/^upload:/.test(l.mediaUrl)) upMsg('This lesson uses an uploaded file. Choose a new file to replace it, or paste a link below.', '');
     document.getElementById('l-title').focus();
   } else if (del) {
     if (del.dataset.armed !== '1') {           // first click asks, second click deletes
@@ -496,7 +541,84 @@ function onLessonListClick(e) {
     });
   }
 }
+/* ----- file upload (sent in 3 MB parts) ----- */
+let uploading = false;
+let uploadedId = null;      // id of a finished upload not yet attached to a lesson
+function upMsg(text, cls) { const m = document.getElementById('l-file-msg'); m.textContent = text; m.className = 'msg' + (cls ? ' ' + cls : ''); }
+function upBar(pct) {
+  const b = document.getElementById('l-bar'); b.style.display = pct === null ? 'none' : 'block';
+  document.getElementById('l-bar-i').style.width = (pct || 0) + '%';
+}
+function discardUpload() {
+  if (uploadedId) { api('/api/admin/learning/media/' + uploadedId, 'DELETE'); uploadedId = null; }
+}
+function resetUploadUI() {
+  document.getElementById('l-file').value = '';
+  document.getElementById('l-file-clear').style.display = 'none';
+  upBar(null); upMsg('No file chosen. Or paste a link below.', '');
+}
+function syncLessonType() {
+  document.getElementById('l-upload-wrap').style.display = val('l-type') === 'article' ? 'none' : '';
+}
+async function onFileChosen() {
+  const f = document.getElementById('l-file').files[0];
+  if (!f) return;
+  setError('l-error', '');
+  const MB = 1024 * 1024;
+  if (f.size > 200 * MB) { upMsg('That file is ' + Math.round(f.size / MB) + ' MB. The limit is 200 MB. Please compress it or use a YouTube / Vimeo link.', 'err'); document.getElementById('l-file').value = ''; return; }
+  discardUpload();
+  uploading = true;
+  const saveBtn = document.getElementById('l-save'); saveBtn.disabled = true;
+  document.getElementById('l-file').disabled = true;
+  upBar(0); upMsg('Starting upload…', '');
+  let mid = null;
+  try {
+    const s = await api('/api/admin/learning/media', 'POST', { filename: f.name, size: f.size });
+    if (!s) return;                                   // session ended
+    if (!s.ok) throw new Error(s.data.error || 'Could not start the upload.');
+    mid = s.data.id;
+    const cs = s.data.chunkBytes, total = Math.ceil(f.size / cs);
+    for (let n = 0; n < total; n++) {
+      AdminSession.touch();                           // a long upload counts as activity
+      let res = null, tries = 0;
+      while (true) {                                  // retry a part a couple of times on a network blip
+        try {
+          res = await AdminSession.apiFetch('/api/admin/learning/media/' + mid + '/chunk/' + n,
+            { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: f.slice(n * cs, (n + 1) * cs) });
+          break;
+        } catch (e) {
+          if (AdminSession.isEnded()) return;
+          if (++tries > 2) throw new Error('The connection was lost while uploading. Please try again.');
+          await new Promise(function (ok) { setTimeout(ok, 1500 * tries); });
+        }
+      }
+      if (AdminSession.isEnded()) return;
+      if (!res.ok) { let d = {}; try { d = await res.json(); } catch (e) {} throw new Error(d.error || 'Upload failed.'); }
+      upBar(Math.round(((n + 1) / total) * 100));
+      upMsg('Uploading… ' + Math.round(((n + 1) / total) * 100) + '%  (keep this window open)', '');
+    }
+    const fin = await api('/api/admin/learning/media/' + mid + '/finish', 'POST');
+    if (!fin) return;
+    if (!fin.ok) throw new Error(fin.data.error || 'Could not finish the upload.');
+    uploadedId = mid;
+    document.getElementById('l-url').value = fin.data.url;
+    document.getElementById('l-type').value = fin.data.mediaType;
+    if (!val('l-title')) document.getElementById('l-title').value = f.name.replace(/\.[^.]+$/, '');
+    upMsg('Uploaded: ' + f.name + ' (' + (f.size / MB).toFixed(1) + ' MB). Now click the save button.', 'ok');
+    document.getElementById('l-file-clear').style.display = '';
+  } catch (e) {
+    if (mid) api('/api/admin/learning/media/' + mid, 'DELETE');
+    document.getElementById('l-file').value = '';
+    upBar(null); upMsg(e.message || 'Upload failed.', 'err');
+  } finally {
+    uploading = false;
+    document.getElementById('l-file').disabled = false;
+    saveBtn.disabled = false;
+  }
+}
+
 async function saveLesson() {
+  if (uploading) { setError('l-error', 'Please wait until the upload finishes.'); return; }
   setError('l-error', '');
   const payload = {
     title: val('l-title'), media_type: val('l-type'), media_url: val('l-url'),
@@ -504,7 +626,7 @@ async function saveLesson() {
     position: Number(val('l-pos') || 1), active: document.getElementById('l-active').checked
   };
   if (!payload.title) { setError('l-error', 'Please enter a title.'); return; }
-  if (!payload.media_url) { setError('l-error', 'Please enter the media link.'); return; }
+  if (!payload.media_url) { setError('l-error', 'Please upload a file or enter the media link.'); return; }
   const btn = document.getElementById('l-save'); btn.disabled = true;
   const r = editingLessonId
     ? await api('/api/admin/learning/lessons/' + encodeURIComponent(editingLessonId), 'PUT', payload)
@@ -512,6 +634,7 @@ async function saveLesson() {
   btn.disabled = false;
   if (!r) return;
   if (!r.ok) { setError('l-error', r.data.error || 'Could not save the lesson.'); return; }
+  uploadedId = null;       // now attached to the lesson
   flash(r.data.message || 'Saved.', 'ok');
   await load();            // refresh first so the next lesson's order number is right
   resetLessonForm();

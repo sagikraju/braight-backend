@@ -1,7 +1,7 @@
 /*
  * Shared start-up for My Payments / My Products / My Documents:
  *   UserPage.start(function (user, root) { ...fill root... });
- * Checks the session (30-second idle timeout, one session per user), keeps the
+ * Checks the session (3-minute idle timeout, one session per user), keeps the
  * page for Student and Jobseeker users, wires up Log Out, then calls render().
  */
 (function () {

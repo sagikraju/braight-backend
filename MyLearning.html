@@ -465,7 +465,8 @@ UserPage.start(function (user, root) {
     } catch (e) { /* not a URL */ }
     return null;
   }
-  function playableSrc(u) { return safeHttps(u) || /^media\/[A-Za-z0-9][A-Za-z0-9._ \-\/]*$/.test(u) && u.indexOf('..') === -1; }
+  function isUpload(u) { return /^upload:[0-9]{1,12}$/.test(u); }
+  function playableSrc(u) { return safeHttps(u) || isUpload(u) || /^media\/[A-Za-z0-9][A-Za-z0-9._ \-\/]*$/.test(u) && u.indexOf('..') === -1; }
 
   function renderPlayer(lesson, onEnded) {
     var box = document.getElementById('player');
@@ -479,13 +480,29 @@ UserPage.start(function (user, root) {
       el.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
       el.allowFullscreen = true; el.referrerPolicy = 'strict-origin-when-cross-origin';
       if (/spotify/.test(embed)) { box.classList.add('audio'); el.style.height = '232px'; }
-    } else if (lesson.mediaType === 'video') {
-      el = document.createElement('video'); el.controls = true; el.preload = 'metadata'; el.playsInline = true; el.src = u;
+    } else if (lesson.mediaType === 'video' || lesson.mediaType === 'audio') {
+      if (lesson.mediaType === 'audio') box.classList.add('audio');
+      el = document.createElement(lesson.mediaType === 'video' ? 'video' : 'audio');
+      el.controls = true; el.preload = 'metadata'; if (lesson.mediaType === 'video') el.playsInline = true;
       el.addEventListener('ended', onEnded);
-    } else if (lesson.mediaType === 'audio') {
-      box.classList.add('audio');
-      el = document.createElement('audio'); el.controls = true; el.preload = 'metadata'; el.src = u;
-      el.addEventListener('ended', onEnded);
+      // Watching or listening counts as activity, so the 3-minute idle logout does not cut in mid-lesson.
+      var lastTouch = 0;
+      el.addEventListener('timeupdate', function () {
+        var now = Date.now();
+        if (now - lastTouch > 15000 && AppSession.touch) { lastTouch = now; AppSession.touch(); }
+      });
+      if (isUpload(u)) {
+        // Files uploaded by brAIght: ask the server for a short-lived signed link, then play it.
+        AppSession.apiFetch('/api/learning/lessons/' + encodeURIComponent(lesson.id) + '/media')
+          .then(function (res) { return res.ok ? res.json() : Promise.reject(); })
+          .then(function (d) {
+            if (!/^\/api\/learning\/media\/[0-9]+\?e=[0-9]+&t=[0-9a-f]{64}$/.test(d.path || '')) return Promise.reject();
+            el.src = 'https://braight-backend.onrender.com' + d.path;
+          })
+          .catch(function () { if (!AppSession.isEnded()) { box.textContent = 'This lesson could not be loaded. Please try again.'; } });
+      } else {
+        el.src = u;
+      }
     } else {
       box.classList.add('article');
       el = document.createElement('a'); el.className = 'btn'; el.textContent = 'Read the article ↗';

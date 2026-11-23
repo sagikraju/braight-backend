@@ -12,7 +12,7 @@
  *     if (admin) { ...load page data with AdminSession.apiFetch(...) }
  *   </script>
  *
- * It provides: session check, 30-second inactivity timeout with a popup,
+ * It provides: session check, 3-minute inactivity timeout with a popup,
  * heartbeat to keep the server-side session alive, authenticated fetch,
  * and logout that releases the single admin session.
  */
@@ -21,7 +21,7 @@
 
   var API_BASE = 'https://braight-backend.onrender.com';
   var STORAGE_KEY = 'braight_user';
-  var IDLE_LIMIT_MS = 30 * 1000;   // log out after 30 seconds without activity
+  var IDLE_LIMIT_MS = 3 * 60 * 1000;   // log out after 3 minutes without activity
   var HEARTBEAT_MS = 10 * 1000;    // tell the server we're still active (only if there was activity)
 
   var user = null;

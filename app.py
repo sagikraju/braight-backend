@@ -24,6 +24,7 @@ Render start command: gunicorn app:app
 
 import datetime
 import hashlib
+import hmac
 import io
 import logging
 import os
@@ -31,13 +32,14 @@ import re
 import json
 import secrets
 import threading
+import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 
 import psycopg
-from flask import Flask, g, jsonify, request, send_file
+from flask import Flask, Response, g, jsonify, request, send_file
 from flask_cors import CORS
 from psycopg import errors as pg_errors
 from psycopg.rows import dict_row
@@ -71,9 +73,9 @@ ALLOWED_STATUS_VALUES = {"active", "inactive", "locked"}
 MAX_FAILED_ATTEMPTS = 3
 
 # Sessions (admins and regular users) are server-side and expire when idle. The
-# pages log the user out after 30 s without any activity; the server allows a
+# pages log the user out after 3 minutes without any activity; the server allows a
 # little longer (heartbeat interval + network latency) so the two never disagree.
-SESSION_IDLE_TIMEOUT_SECONDS = 45
+SESSION_IDLE_TIMEOUT_SECONDS = 210
 
 _DUMMY_HASH = generate_password_hash("not-a-real-password")
 
@@ -1377,7 +1379,8 @@ def reset_password():
 @app.before_request
 def _limit_body_size():
     """Everything except the document upload only accepts small bodies."""
-    if request.method in ("POST", "PUT") and request.path != "/api/documents":
+    if (request.method in ("POST", "PUT") and request.path != "/api/documents"
+            and not request.path.startswith("/api/admin/learning/media/")):
         length = request.content_length
         if length is not None and length > SMALL_BODY_LIMIT:
             return jsonify({"error": "Request too large."}), 413
@@ -1628,7 +1631,7 @@ LEARNING_LIST_SQL = """
     FROM learning_items i
     LEFT JOIN user_learning ul ON ul.item_id = i.id AND ul.user_id = %s
     WHERE i.active AND (i.audience = 'both' OR i.audience = %s)
-    ORDER BY i.featured DESC, i.sort_order, i.id
+    ORDER BY (i.kind = 'braight') DESC, i.featured DESC, i.sort_order, i.id
 """
 
 LEARNING_VISIBLE_ITEM_SQL = """
@@ -1974,10 +1977,17 @@ def _https_url(data, key, label, required=False):
 _MEDIA_PATH_RE = re.compile(r"^media/[A-Za-z0-9][A-Za-z0-9._ \-/]{0,300}$")
 
 
+_UPLOAD_RE = re.compile(r"^upload:[0-9]{1,12}$")
+
+
 def _media_url(data, media_type):
     value = _text(data, "media_url", 500, required=True, label="Media link")
     if value.startswith("https://"):
         return _https_url(data, "media_url", "Media link", required=True)
+    if _UPLOAD_RE.match(value):
+        if media_type == "article":
+            raise InputError("An article must be a link starting with https://")
+        return value
     if media_type == "article":
         raise InputError("An article link must start with https://")
     if not _MEDIA_PATH_RE.match(value) or ".." in value or "//" in value:
@@ -2024,7 +2034,7 @@ def admin_learning_list():
                        (SELECT COUNT(*) FROM user_learning u WHERE u.item_id = i.id AND u.saved) AS savers,
                        (SELECT COUNT(*) FROM user_learning u WHERE u.item_id = i.id AND u.status = 'completed') AS completers
                 FROM learning_items i
-                ORDER BY i.kind DESC, i.sort_order, i.id
+                ORDER BY (i.kind = 'braight') DESC, i.sort_order, i.id
                 """
             )
             items = cur.fetchall()
@@ -2142,6 +2152,9 @@ def admin_lesson_create(item_id):
                 return jsonify({"error": "Course not found."}), 404
             if row[0] != "braight":
                 return jsonify({"error": "Lessons can only be added to Braight courses."}), 400
+            bad = _check_upload(cur, f["media_url"], f["media_type"])
+            if bad:
+                return jsonify({"error": bad}), 400
             cur.execute(
                 "INSERT INTO learning_lessons (item_id, " + ", ".join(_LESSON_COLUMNS) + ") VALUES (%s, "
                 + ", ".join(["%s"] * len(_LESSON_COLUMNS)) + ") RETURNING id",
@@ -2164,12 +2177,19 @@ def admin_lesson_update(lesson_id):
         return _bad_request(exc)
     try:
         with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT media_url FROM learning_lessons WHERE id = %s FOR UPDATE", (lesson_id,))
+            old = cur.fetchone()
+            if old is None:
+                return jsonify({"error": "Lesson not found."}), 404
+            bad = _check_upload(cur, f["media_url"], f["media_type"])
+            if bad:
+                return jsonify({"error": bad}), 400
             cur.execute(
                 "UPDATE learning_lessons SET " + ", ".join(f"{c} = %s" for c in _LESSON_COLUMNS) + " WHERE id = %s",
                 tuple(f[c] for c in _LESSON_COLUMNS) + (lesson_id,),
             )
-            if cur.rowcount == 0:
-                return jsonify({"error": "Lesson not found."}), 404
+            if old[0] != f["media_url"]:
+                _drop_upload(cur, old[0])
         return jsonify({"message": "Lesson saved."}), 200
     except Exception:
         logger.exception("admin_lesson_update failed")
@@ -2181,13 +2201,268 @@ def admin_lesson_update(lesson_id):
 def admin_lesson_delete(lesson_id):
     try:
         with get_connection() as conn, conn.cursor() as cur:
-            cur.execute("DELETE FROM learning_lessons WHERE id = %s", (lesson_id,))
-            if cur.rowcount == 0:
+            cur.execute("DELETE FROM learning_lessons WHERE id = %s RETURNING media_url", (lesson_id,))
+            row = cur.fetchone()
+            if row is None:
                 return jsonify({"error": "Lesson not found."}), 404
+            _drop_upload(cur, row[0])
         return jsonify({"message": "Lesson deleted."}), 200
     except Exception:
         logger.exception("admin_lesson_delete failed")
         return jsonify({"error": "Could not delete the lesson."}), 500
+
+
+# --------------------------------------------------------------------------
+# Delete a course, and uploaded lesson media (videos / podcasts stored in the database)
+# --------------------------------------------------------------------------
+
+@app.route("/api/admin/learning/<int:item_id>", methods=["DELETE"])
+@require_admin
+def admin_learning_delete(item_id):
+    """Deletes the course, its lessons, every user's saved/subscribed/progress for it, and uploaded files."""
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT media_url FROM learning_lessons WHERE item_id = %s", (item_id,))
+            urls = [r[0] for r in cur.fetchall()]
+            cur.execute("DELETE FROM learning_items WHERE id = %s", (item_id,))
+            if cur.rowcount == 0:
+                return jsonify({"error": "Course not found."}), 404
+            for u in urls:
+                _drop_upload(cur, u)
+        return jsonify({"message": "Course deleted."}), 200
+    except Exception:
+        logger.exception("admin_learning_delete failed")
+        return jsonify({"error": "Could not delete the course."}), 500
+
+
+MEDIA_CHUNK_BYTES = 3 * 1024 * 1024
+MEDIA_MAX_BYTES = 200 * 1024 * 1024        # one file
+MEDIA_TOTAL_MAX_BYTES = 600 * 1024 * 1024  # all uploaded lesson files together
+MEDIA_LINK_SECONDS = 6 * 3600
+_MP3 = lambda b: b.startswith(b"ID3") or (len(b) > 1 and b[0] == 0xFF and (b[1] & 0xE0) == 0xE0)
+_FTYP = lambda b: len(b) >= 8 and b[4:8] == b"ftyp"
+# extension -> (content type, lesson type, check that the bytes really are that kind of file)
+MEDIA_TYPES = {
+    "mp4":  ("video/mp4", "video", _FTYP),
+    "webm": ("video/webm", "video", lambda b: b.startswith(b"\x1a\x45\xdf\xa3")),
+    "mp3":  ("audio/mpeg", "audio", _MP3),
+    "m4a":  ("audio/mp4", "audio", _FTYP),
+    "ogg":  ("audio/ogg", "audio", lambda b: b.startswith(b"OggS")),
+    "wav":  ("audio/wav", "audio", lambda b: len(b) >= 12 and b[:4] == b"RIFF" and b[8:12] == b"WAVE"),
+}
+
+
+def _upload_id(url):
+    return int(url.split(":", 1)[1]) if isinstance(url, str) and _UPLOAD_RE.match(url) else None
+
+
+def _drop_upload(cur, url):
+    """Remove the stored file a lesson pointed at (no-op for ordinary links)."""
+    mid = _upload_id(url)
+    if mid is not None:
+        cur.execute("DELETE FROM lesson_media WHERE id = %s", (mid,))
+
+
+def _check_upload(cur, url, media_type):
+    """Returns an error message if the lesson points at an upload that is missing, unfinished or the wrong type."""
+    mid = _upload_id(url)
+    if mid is None:
+        return None
+    cur.execute("SELECT lesson_type, complete FROM lesson_media WHERE id = %s", (mid,))
+    row = cur.fetchone()
+    if row is None or row[1] is not True:
+        return "That uploaded file was not found or did not finish uploading. Please upload it again."
+    if row[0] != media_type:
+        return "The uploaded file is a " + ("video" if row[0] == "video" else "podcast / audio") + ". Please set the lesson Type to match."
+    return None
+
+
+@app.route("/api/admin/learning/media", methods=["POST"])
+@require_admin
+def admin_media_start():
+    data = request.get_json(silent=True) or {}
+    try:
+        name = _text(data, "filename", 200, required=True, label="File name")
+        size = _whole_number(data.get("size"), "File size", minimum=1, maximum=MEDIA_MAX_BYTES)
+    except InputError as exc:
+        return _bad_request(exc)
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if ext not in MEDIA_TYPES:
+        return jsonify({"error": "Allowed files: .mp4 .webm (video) and .mp3 .m4a .ogg .wav (audio)."}), 400
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM lesson_media m WHERE m.created_at < NOW() - INTERVAL '2 days' "
+                "AND NOT EXISTS (SELECT 1 FROM learning_lessons l WHERE l.media_url = 'upload:' || m.id)")
+            cur.execute("SELECT COALESCE(SUM(size_bytes), 0) FROM lesson_media")
+            if int(cur.fetchone()[0]) + size > MEDIA_TOTAL_MAX_BYTES:
+                return jsonify({"error": "The storage reserved for lesson files is full. Delete an unused lesson file or use a YouTube / Vimeo link."}), 400
+            cur.execute(
+                "INSERT INTO lesson_media (filename, content_type, lesson_type, size_bytes, chunk_bytes) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (name, MEDIA_TYPES[ext][0], MEDIA_TYPES[ext][1], size, MEDIA_CHUNK_BYTES))
+            mid = cur.fetchone()[0]
+        return jsonify({"id": mid, "chunkBytes": MEDIA_CHUNK_BYTES, "mediaType": MEDIA_TYPES[ext][1]}), 201
+    except Exception:
+        logger.exception("admin_media_start failed")
+        return jsonify({"error": "Could not start the upload."}), 500
+
+
+@app.route("/api/admin/learning/media/<int:mid>/chunk/<int:n>", methods=["PUT"])
+@require_admin
+def admin_media_chunk(mid, n):
+    body = request.get_data(cache=False)
+    if not body or len(body) > MEDIA_CHUNK_BYTES:
+        return jsonify({"error": "Bad chunk size."}), 400
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT filename, size_bytes, complete FROM lesson_media WHERE id = %s FOR UPDATE", (mid,))
+            m = cur.fetchone()
+            if m is None or m[2]:
+                return jsonify({"error": "Upload not found."}), 404
+            cur.execute("SELECT COUNT(*), COALESCE(SUM(octet_length(data)), 0) FROM lesson_media_chunks WHERE media_id = %s", (mid,))
+            count, have = cur.fetchone()
+            if n != count or int(have) != n * MEDIA_CHUNK_BYTES:
+                return jsonify({"error": "Chunk out of order. Please start the upload again."}), 409
+            if int(have) + len(body) > m[1]:
+                return jsonify({"error": "More data than the file size you declared."}), 400
+            if n == 0:
+                ext = m[0].rsplit(".", 1)[-1].lower()
+                if not MEDIA_TYPES[ext][2](body[:16]):
+                    return jsonify({"error": "That file does not look like a real ." + ext + " file."}), 400
+            cur.execute("INSERT INTO lesson_media_chunks (media_id, n, data) VALUES (%s, %s, %s)", (mid, n, body))
+        return jsonify({"ok": True}), 200
+    except Exception:
+        logger.exception("admin_media_chunk failed")
+        return jsonify({"error": "Could not store that part of the file."}), 500
+
+
+@app.route("/api/admin/learning/media/<int:mid>/finish", methods=["POST"])
+@require_admin
+def admin_media_finish(mid):
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT size_bytes, complete, lesson_type FROM lesson_media WHERE id = %s FOR UPDATE", (mid,))
+            m = cur.fetchone()
+            if m is None:
+                return jsonify({"error": "Upload not found."}), 404
+            cur.execute("SELECT COALESCE(SUM(octet_length(data)), 0) FROM lesson_media_chunks WHERE media_id = %s", (mid,))
+            if int(cur.fetchone()[0]) != m[0]:
+                return jsonify({"error": "The upload is incomplete. Please try again."}), 400
+            cur.execute("UPDATE lesson_media SET complete = TRUE WHERE id = %s", (mid,))
+        return jsonify({"url": "upload:%d" % mid, "mediaType": m[2]}), 200
+    except Exception:
+        logger.exception("admin_media_finish failed")
+        return jsonify({"error": "Could not finish the upload."}), 500
+
+
+@app.route("/api/admin/learning/media/<int:mid>", methods=["DELETE"])
+@require_admin
+def admin_media_abort(mid):
+    """Throw away an upload that was cancelled or failed (only if no lesson uses it)."""
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("DELETE FROM lesson_media m WHERE m.id = %s "
+                        "AND NOT EXISTS (SELECT 1 FROM learning_lessons l WHERE l.media_url = 'upload:' || m.id)", (mid,))
+        return jsonify({"ok": True}), 200
+    except Exception:
+        logger.exception("admin_media_abort failed")
+        return jsonify({"error": "Could not remove the upload."}), 500
+
+
+def _media_secret():
+    key = os.environ.get("MEDIA_SECRET") or os.environ.get("DB_PASSWORD") or os.environ.get("DATABASE_URL") or ""
+    return hashlib.sha256(("braight-media|" + key).encode("utf-8")).digest()
+
+
+def _media_sig(mid, exp):
+    return hmac.new(_media_secret(), ("%d.%d" % (mid, exp)).encode("ascii"), hashlib.sha256).hexdigest()
+
+
+@app.route("/api/learning/lessons/<int:lesson_id>/media", methods=["GET"])
+@require_session
+def learning_lesson_media(lesson_id):
+    """A logged-in user who may see this lesson gets a short-lived link for its uploaded file
+    (<video> and <audio> cannot send the login header, so the link carries a signed expiry)."""
+    try:
+        user_id, program = _learning_who()
+        if user_id is None:
+            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT l.media_url FROM learning_lessons l JOIN learning_items i ON i.id = l.item_id
+                WHERE l.id = %s AND l.active AND i.active AND i.kind = 'braight'
+                  AND (i.audience = 'both' OR i.audience = %s)
+                """, (lesson_id, program))
+            row = cur.fetchone()
+        mid = _upload_id(row[0]) if row else None
+        if mid is None:
+            return jsonify({"error": "Lesson not found."}), 404
+        exp = int(time.time()) + MEDIA_LINK_SECONDS
+        return jsonify({"path": "/api/learning/media/%d?e=%d&t=%s" % (mid, exp, _media_sig(mid, exp))}), 200
+    except Exception:
+        logger.exception("learning_lesson_media failed")
+        return jsonify({"error": "Could not open this lesson."}), 500
+
+
+@app.route("/api/learning/media/<int:mid>", methods=["GET"])
+def learning_media_file(mid):
+    try:
+        exp = int(request.args.get("e", "0"))
+    except ValueError:
+        exp = 0
+    sig = request.args.get("t", "")
+    if exp < time.time() or not hmac.compare_digest(sig, _media_sig(mid, exp)):
+        return jsonify({"error": "This link has expired. Please reopen the lesson."}), 403
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT content_type, size_bytes, chunk_bytes FROM lesson_media WHERE id = %s AND complete", (mid,))
+            m = cur.fetchone()
+    except Exception:
+        logger.exception("learning_media_file failed")
+        return jsonify({"error": "Could not load the file."}), 500
+    if m is None:
+        return jsonify({"error": "File not found."}), 404
+    ctype, size, cs = m
+    start, end, status = 0, size - 1, 200
+    rng = request.headers.get("Range")
+    if rng:
+        mt = re.match(r"^bytes=(\d*)-(\d*)$", rng.strip())
+        if not mt or (mt.group(1) == "" and mt.group(2) == ""):
+            return Response(status=416, headers={"Content-Range": "bytes */%d" % size})
+        if mt.group(1) == "":
+            start = max(size - int(mt.group(2)), 0)
+        else:
+            start = int(mt.group(1))
+            if mt.group(2):
+                end = min(int(mt.group(2)), size - 1)
+        if start > end or start >= size:
+            return Response(status=416, headers={"Content-Range": "bytes */%d" % size})
+        status = 206
+
+    def generate():
+        pos = start
+        while pos <= end:
+            n, off = divmod(pos, cs)
+            take = min(cs - off, end - pos + 1)
+            with get_connection() as conn, conn.cursor() as cur:
+                cur.execute("SELECT substring(data FROM %s FOR %s) FROM lesson_media_chunks WHERE media_id = %s AND n = %s",
+                            (off + 1, take, mid, n))
+                row = cur.fetchone()
+            if not row or row[0] is None:
+                return
+            yield bytes(row[0])
+            pos += take
+
+    headers = {
+        "Content-Type": ctype, "Content-Length": str(end - start + 1), "Accept-Ranges": "bytes",
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=3600",
+        "Content-Security-Policy": "sandbox",
+    }
+    if status == 206:
+        headers["Content-Range"] = "bytes %d-%d/%d" % (start, end, size)
+    return Response(generate(), status=status, headers=headers)
 
 
 if __name__ == "__main__":
