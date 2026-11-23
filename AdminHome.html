@@ -108,14 +108,7 @@ footer b { color:var(--navy); }
 <main>
   <div class="wrap">
     <div class="layout">
-      <aside class="sidebar" aria-label="Admin navigation">
-        <div class="side-title">Dashboard</div>
-        <nav>
-          <a class="side-link" href="UserProfile.html">User Profile</a>
-          <a class="side-link" href="ActiveSessions.html">Active Sessions</a>
-          <a class="side-link soon" href="#" title="Coming soon">Server Dashboard <span class="soon-tag">Soon</span></a>
-        </nav>
-      </aside>
+      <aside class="sidebar" id="admin-nav" aria-label="Admin navigation"></aside>
 
       <section>
         <h1>User Management Dashboard</h1>
@@ -161,6 +154,7 @@ footer b { color:var(--navy); }
   </div>
 </footer>
 
+<script src="admin-nav.js"></script>
 <script src="admin-session.js"></script>
 <script>
 let selectedUserForUpdate = null;
