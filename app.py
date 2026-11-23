@@ -31,7 +31,9 @@ import re
 import json
 import secrets
 import threading
+import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 
 import psycopg
@@ -1594,6 +1596,598 @@ def delete_document(doc_id):
     except Exception:
         logger.exception("delete_document failed")
         return jsonify({"error": "Could not delete the document."}), 500
+
+
+# --------------------------------------------------------------------------
+# My Learning
+# --------------------------------------------------------------------------
+#
+# learning_items   courses: 'external' (a link to a course on another site) and
+#                  'braight' (our own courses, made of learning_lessons)
+# user_learning    each user's saved / subscribed / progress per course
+# user_lesson_done lessons a user has finished
+# Trending articles come from the public DEV Community API and are cached for an hour.
+
+LEARNING_KINDS = {"external", "braight"}
+LEARNING_TOPICS = {"python", "genai", "data", "other"}
+LEARNING_LEVELS = {"beginner", "intermediate", "advanced"}
+LEARNING_AUDIENCES = {"student", "jobseeker", "both"}
+LEARNING_MEDIA_TYPES = {"video", "audio", "article"}
+LEARNING_STATUSES = {"none", "in_progress", "completed"}
+
+LEARNING_LIST_SQL = """
+    SELECT i.id, i.kind, i.title, i.provider, i.url, i.topic, i.level, i.duration_text,
+           i.price, i.description, i.audience, i.featured,
+           (SELECT COUNT(*) FROM learning_lessons l WHERE l.item_id = i.id AND l.active) AS lesson_count,
+           (SELECT COUNT(*) FROM learning_lessons l
+              JOIN user_lesson_done d ON d.lesson_id = l.id AND d.user_id = %s
+             WHERE l.item_id = i.id AND l.active) AS done_count,
+           COALESCE(ul.saved, FALSE) AS saved, COALESCE(ul.subscribed, FALSE) AS subscribed,
+           COALESCE(ul.status, 'none') AS status,
+           ul.saved_at, ul.subscribed_at, ul.started_at, ul.completed_at
+    FROM learning_items i
+    LEFT JOIN user_learning ul ON ul.item_id = i.id AND ul.user_id = %s
+    WHERE i.active AND (i.audience = 'both' OR i.audience = %s)
+    ORDER BY i.featured DESC, i.sort_order, i.id
+"""
+
+LEARNING_VISIBLE_ITEM_SQL = """
+    SELECT id, kind FROM learning_items
+    WHERE id = %s AND active AND (audience = 'both' OR audience = %s)
+"""
+
+LEARNING_STATE_LOCK_SQL = """
+    SELECT saved, subscribed, status, saved_at, subscribed_at, started_at, completed_at
+    FROM user_learning WHERE user_id = %s AND item_id = %s FOR UPDATE
+"""
+
+LEARNING_STATE_SAVE_SQL = """
+    UPDATE user_learning
+       SET saved = %s, subscribed = %s, status = %s,
+           saved_at = %s, subscribed_at = %s, started_at = %s, completed_at = %s
+     WHERE user_id = %s AND item_id = %s
+"""
+
+LEARNING_LESSONS_SQL = """
+    SELECT l.id, l.position, l.title, l.media_type, l.media_url, l.duration_min, l.description,
+           (d.user_id IS NOT NULL) AS done
+    FROM learning_lessons l
+    LEFT JOIN user_lesson_done d ON d.lesson_id = l.id AND d.user_id = %s
+    WHERE l.item_id = %s AND l.active
+    ORDER BY l.position, l.id
+"""
+
+
+def _learning_who():
+    """(user id, 'student' | 'jobseeker' | other) for the logged-in user, or (None, None)."""
+    with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT id, user_type FROM users WHERE username = %s", (g.session_username,))
+        row = cur.fetchone()
+    if not row:
+        return None, None
+    return row["id"], (row["user_type"] or "").strip().lower().replace(" ", "")
+
+
+def _learning_item_view(r):
+    return {
+        "id": r["id"], "kind": r["kind"], "title": r["title"], "provider": r["provider"],
+        "url": r["url"], "topic": r["topic"], "level": r["level"], "duration": r["duration_text"],
+        "price": r["price"], "description": r["description"], "audience": r["audience"],
+        "featured": r["featured"],
+        "lessonCount": int(r["lesson_count"]), "doneCount": int(r["done_count"]),
+        "saved": bool(r["saved"]), "subscribed": bool(r["subscribed"]), "status": r["status"],
+        "savedAt": _iso(r["saved_at"]), "subscribedAt": _iso(r["subscribed_at"]),
+        "startedAt": _iso(r["started_at"]), "completedAt": _iso(r["completed_at"]),
+    }
+
+
+def _learning_apply_status(state, new_status, now):
+    """Change status and keep started_at / completed_at in step with it."""
+    state["status"] = new_status
+    if new_status == "none":
+        state["started_at"] = None
+        state["completed_at"] = None
+    elif new_status == "in_progress":
+        state["started_at"] = state["started_at"] or now
+        state["completed_at"] = None
+    else:
+        state["started_at"] = state["started_at"] or now
+        state["completed_at"] = state["completed_at"] or now
+
+
+def _learning_load_state(cur, user_id, item_id):
+    """Make sure the user has a row for this course, lock it and return it as a dict."""
+    cur.execute(
+        "INSERT INTO user_learning (user_id, item_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+        (user_id, item_id),
+    )
+    cur.execute(LEARNING_STATE_LOCK_SQL, (user_id, item_id))
+    return dict(cur.fetchone())
+
+
+def _learning_store_state(cur, user_id, item_id, st):
+    cur.execute(
+        LEARNING_STATE_SAVE_SQL,
+        (st["saved"], st["subscribed"], st["status"], st["saved_at"], st["subscribed_at"],
+         st["started_at"], st["completed_at"], user_id, item_id),
+    )
+
+
+def _learning_state_view(st):
+    return {
+        "saved": bool(st["saved"]), "subscribed": bool(st["subscribed"]), "status": st["status"],
+        "savedAt": _iso(st["saved_at"]), "subscribedAt": _iso(st["subscribed_at"]),
+        "startedAt": _iso(st["started_at"]), "completedAt": _iso(st["completed_at"]),
+    }
+
+
+@app.route("/api/learning", methods=["GET"])
+@require_session
+def learning_list():
+    try:
+        user_id, program = _learning_who()
+        if user_id is None:
+            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(LEARNING_LIST_SQL, (user_id, user_id, program))
+            rows = cur.fetchall()
+        return jsonify({"items": [_learning_item_view(r) for r in rows]}), 200
+    except Exception:
+        logger.exception("learning_list failed")
+        return jsonify({"error": "Could not load your learning page."}), 500
+
+
+@app.route("/api/learning/<int:item_id>/state", methods=["PUT"])
+@require_session
+def learning_set_state(item_id):
+    data = request.get_json(silent=True) or {}
+    changes = {}
+    for key in ("saved", "subscribed"):
+        if key in data:
+            if not isinstance(data[key], bool):
+                return jsonify({"error": f"{key} must be true or false."}), 400
+            changes[key] = data[key]
+    if "status" in data:
+        if data["status"] not in LEARNING_STATUSES:
+            return jsonify({"error": "status must be none, in_progress or completed."}), 400
+        changes["status"] = data["status"]
+    if not changes:
+        return jsonify({"error": "Nothing to change."}), 400
+    try:
+        user_id, program = _learning_who()
+        if user_id is None:
+            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+        now = datetime.datetime.now(datetime.timezone.utc)
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(LEARNING_VISIBLE_ITEM_SQL, (item_id, program))
+            if cur.fetchone() is None:
+                return jsonify({"error": "Course not found."}), 404
+            st = _learning_load_state(cur, user_id, item_id)
+            for key in ("saved", "subscribed"):
+                if key in changes and changes[key] != st[key]:
+                    st[key] = changes[key]
+                    st[key + "_at"] = now if changes[key] else None
+            if "status" in changes and changes["status"] != st["status"]:
+                _learning_apply_status(st, changes["status"], now)
+            _learning_store_state(cur, user_id, item_id, st)
+        return jsonify(_learning_state_view(st)), 200
+    except Exception:
+        logger.exception("learning_set_state failed")
+        return jsonify({"error": "Could not save that change."}), 500
+
+
+@app.route("/api/learning/<int:item_id>/lessons", methods=["GET"])
+@require_session
+def learning_lessons(item_id):
+    try:
+        user_id, program = _learning_who()
+        if user_id is None:
+            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(LEARNING_VISIBLE_ITEM_SQL, (item_id, program))
+            item = cur.fetchone()
+            if item is None or item["kind"] != "braight":
+                return jsonify({"error": "Course not found."}), 404
+            cur.execute(LEARNING_LESSONS_SQL, (user_id, item_id))
+            rows = cur.fetchall()
+        return jsonify({"lessons": [{
+            "id": r["id"], "position": r["position"], "title": r["title"],
+            "mediaType": r["media_type"], "mediaUrl": r["media_url"],
+            "durationMin": r["duration_min"], "description": r["description"], "done": bool(r["done"]),
+        } for r in rows]}), 200
+    except Exception:
+        logger.exception("learning_lessons failed")
+        return jsonify({"error": "Could not load the lessons."}), 500
+
+
+@app.route("/api/learning/lessons/<int:lesson_id>/done", methods=["PUT"])
+@require_session
+def learning_lesson_done(lesson_id):
+    data = request.get_json(silent=True) or {}
+    done = data.get("done")
+    if not isinstance(done, bool):
+        return jsonify({"error": "done must be true or false."}), 400
+    try:
+        user_id, program = _learning_who()
+        if user_id is None:
+            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+        now = datetime.datetime.now(datetime.timezone.utc)
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT l.item_id FROM learning_lessons l JOIN learning_items i ON i.id = l.item_id
+                WHERE l.id = %s AND l.active AND i.active AND i.kind = 'braight'
+                  AND (i.audience = 'both' OR i.audience = %s)
+                """,
+                (lesson_id, program),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return jsonify({"error": "Lesson not found."}), 404
+            item_id = row["item_id"]
+            st = _learning_load_state(cur, user_id, item_id)   # also locks this user's row for the course
+            if done:
+                cur.execute(
+                    "INSERT INTO user_lesson_done (user_id, lesson_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (user_id, lesson_id),
+                )
+            else:
+                cur.execute("DELETE FROM user_lesson_done WHERE user_id = %s AND lesson_id = %s", (user_id, lesson_id))
+            cur.execute(
+                """
+                SELECT COUNT(*) AS total,
+                       COUNT(d.user_id) AS finished
+                FROM learning_lessons l
+                LEFT JOIN user_lesson_done d ON d.lesson_id = l.id AND d.user_id = %s
+                WHERE l.item_id = %s AND l.active
+                """,
+                (user_id, item_id),
+            )
+            counts = cur.fetchone()
+            total, finished = int(counts["total"]), int(counts["finished"])
+            if total > 0 and finished == total:
+                wanted = "completed"
+            elif finished > 0:
+                wanted = "in_progress"
+            elif st["status"] == "completed":
+                wanted = "in_progress"      # un-ticked everything after finishing
+            else:
+                wanted = st["status"]
+            if wanted != st["status"]:
+                _learning_apply_status(st, wanted, now)
+                _learning_store_state(cur, user_id, item_id, st)
+        return jsonify({"itemId": item_id, "status": st["status"], "doneCount": finished, "lessonCount": total}), 200
+    except Exception:
+        logger.exception("learning_lesson_done failed")
+        return jsonify({"error": "Could not save that change."}), 500
+
+
+# ---- Trending articles (DEV Community public API, cached) -----------------
+
+TRENDING_TTL_SECONDS = 3600
+TRENDING_STALE_SECONDS = 24 * 3600
+TRENDING_SOURCES = (          # (our topic, DEV Community tag)
+    ("python", "python"),
+    ("genai", "ai"),
+    ("genai", "llm"),
+)
+_trending_cache = {"at": 0.0, "topics": {"python": [], "genai": []}}
+_trending_lock = threading.Lock()
+
+
+def _fetch_dev_articles(tag):
+    url = "https://dev.to/api/articles?" + urllib.parse.urlencode({"tag": tag, "top": 7, "per_page": 12})
+    req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "braight-backend/1.0"})
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        body = resp.read(1024 * 1024)
+    return json.loads(body.decode("utf-8"))
+
+
+def _clean_trending(topic, raw):
+    """Keep only the few fields we show, and only links that point at dev.to."""
+    items = []
+    for a in raw if isinstance(raw, list) else []:
+        if not isinstance(a, dict):
+            continue
+        link = a.get("url")
+        title = a.get("title")
+        if not isinstance(link, str) or not link.startswith("https://dev.to/") or not isinstance(title, str) or not title.strip():
+            continue
+        user = a.get("user") if isinstance(a.get("user"), dict) else {}
+        reactions = a.get("public_reactions_count", a.get("positive_reactions_count", 0))
+        minutes = a.get("reading_time_minutes")
+        items.append({
+            "title": title.strip()[:200],
+            "url": link,
+            "source": "DEV Community",
+            "author": str(user.get("name") or "")[:100] or None,
+            "publishedAt": a.get("published_at") if isinstance(a.get("published_at"), str) else None,
+            "reactions": reactions if isinstance(reactions, int) and not isinstance(reactions, bool) else 0,
+            "readMinutes": minutes if isinstance(minutes, int) and not isinstance(minutes, bool) else None,
+            "topic": topic,
+        })
+    return items
+
+
+def _refresh_trending():
+    """Fetch all sources in parallel. Returns the new topic lists, or None if nothing could be fetched."""
+    def one(source):
+        topic, tag = source
+        try:
+            return topic, _clean_trending(topic, _fetch_dev_articles(tag))
+        except Exception:
+            logger.warning("trending fetch failed for tag %s", tag, exc_info=True)
+            return topic, None
+    with ThreadPoolExecutor(max_workers=len(TRENDING_SOURCES)) as pool:
+        results = list(pool.map(one, TRENDING_SOURCES))
+    topics = {"python": [], "genai": []}
+    got_any = False
+    for topic, items in results:
+        if items is not None:
+            got_any = True
+            topics[topic].extend(items)
+    if not got_any:
+        return None
+    for topic, items in topics.items():
+        seen, unique = set(), []
+        for it in sorted(items, key=lambda x: x["reactions"], reverse=True):
+            if it["url"] not in seen:
+                seen.add(it["url"])
+                unique.append(it)
+        topics[topic] = unique[:6]
+    return topics
+
+
+@app.route("/api/learning/trending", methods=["GET"])
+@require_session
+def learning_trending():
+    import time
+    now = time.time()
+    with _trending_lock:
+        age = now - _trending_cache["at"]
+        if age >= TRENDING_TTL_SECONDS:
+            fresh = _refresh_trending()
+            if fresh is not None:
+                _trending_cache["topics"] = fresh
+                _trending_cache["at"] = now
+                age = 0
+            elif age >= TRENDING_STALE_SECONDS:
+                _trending_cache["topics"] = {"python": [], "genai": []}   # too old to show
+            # failed: keep showing the last good list; try again on the next request
+        topics = _trending_cache["topics"]
+        have = any(topics.values())
+    return jsonify({"topics": topics, "available": have}), 200
+
+
+# ---- Admin: manage the catalogue and Braight's own lessons ----------------
+
+def _https_url(data, key, label, required=False):
+    value = _text(data, key, 500, required=required, label=label)
+    if value is None:
+        return None
+    parts = urllib.parse.urlsplit(value)
+    if parts.scheme != "https" or not parts.netloc or any(ch.isspace() for ch in value):
+        raise InputError(f"{label} must be a full web address starting with https://")
+    return value
+
+
+_MEDIA_PATH_RE = re.compile(r"^media/[A-Za-z0-9][A-Za-z0-9._ \-/]{0,300}$")
+
+
+def _media_url(data, media_type):
+    value = _text(data, "media_url", 500, required=True, label="Media link")
+    if value.startswith("https://"):
+        return _https_url(data, "media_url", "Media link", required=True)
+    if media_type == "article":
+        raise InputError("An article link must start with https://")
+    if not _MEDIA_PATH_RE.match(value) or ".." in value or "//" in value:
+        raise InputError("Media link must start with https://, or be a file on the website such as media/lesson-1.mp4")
+    return value
+
+
+def _bool_field(data, key, default):
+    if key not in data:
+        return default
+    if not isinstance(data[key], bool):
+        raise InputError(f"{key} must be true or false.")
+    return data[key]
+
+
+def _learning_item_fields(data, existing_kind=None):
+    kind = existing_kind or _choice(data, "kind", LEARNING_KINDS, label="Kind")
+    fields = {
+        "title": _text(data, "title", 200, required=True, label="Title"),
+        "provider": _text(data, "provider", 100, label="Provider"),
+        "topic": _choice(data, "topic", LEARNING_TOPICS, default="python", label="Topic"),
+        "level": _choice(data, "level", LEARNING_LEVELS, default="beginner", label="Level"),
+        "duration_text": _text(data, "duration", 40, label="Duration"),
+        "price": _text(data, "price", 40, label="Price"),
+        "description": _text(data, "description", 1000, label="Description"),
+        "audience": _choice(data, "audience", LEARNING_AUDIENCES, default="both", label="Audience"),
+        "featured": _bool_field(data, "featured", False),
+        "active": _bool_field(data, "active", True),
+        "sort_order": _whole_number(data.get("sort_order", 0), "Sort order", minimum=-100000, maximum=100000),
+    }
+    fields["url"] = _https_url(data, "url", "Course link", required=(kind == "external")) if kind == "external" else None
+    return kind, fields
+
+
+@app.route("/api/admin/learning", methods=["GET"])
+@require_admin
+def admin_learning_list():
+    try:
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT i.*,
+                       (SELECT COUNT(*) FROM user_learning u WHERE u.item_id = i.id AND u.subscribed) AS subscribers,
+                       (SELECT COUNT(*) FROM user_learning u WHERE u.item_id = i.id AND u.saved) AS savers,
+                       (SELECT COUNT(*) FROM user_learning u WHERE u.item_id = i.id AND u.status = 'completed') AS completers
+                FROM learning_items i
+                ORDER BY i.kind DESC, i.sort_order, i.id
+                """
+            )
+            items = cur.fetchall()
+            cur.execute("SELECT * FROM learning_lessons ORDER BY item_id, position, id")
+            lessons = cur.fetchall()
+        by_item = {}
+        for l in lessons:
+            by_item.setdefault(l["item_id"], []).append({
+                "id": l["id"], "position": l["position"], "title": l["title"], "mediaType": l["media_type"],
+                "mediaUrl": l["media_url"], "durationMin": l["duration_min"], "description": l["description"],
+                "active": l["active"],
+            })
+        out = []
+        for i in items:
+            out.append({
+                "id": i["id"], "kind": i["kind"], "title": i["title"], "provider": i["provider"], "url": i["url"],
+                "topic": i["topic"], "level": i["level"], "duration": i["duration_text"], "price": i["price"],
+                "description": i["description"], "audience": i["audience"], "featured": i["featured"],
+                "active": i["active"], "sort_order": i["sort_order"],
+                "subscribers": int(i["subscribers"]), "savers": int(i["savers"]), "completers": int(i["completers"]),
+                "lessons": by_item.get(i["id"], []),
+            })
+        return jsonify({"items": out}), 200
+    except Exception:
+        logger.exception("admin_learning_list failed")
+        return jsonify({"error": "Could not load the learning content."}), 500
+
+
+_ITEM_COLUMNS = ("kind", "title", "provider", "url", "topic", "level", "duration_text", "price",
+                 "description", "audience", "featured", "active", "sort_order")
+
+
+@app.route("/api/admin/learning", methods=["POST"])
+@require_admin
+def admin_learning_create():
+    data = request.get_json(silent=True) or {}
+    try:
+        kind, f = _learning_item_fields(data)
+    except InputError as exc:
+        return _bad_request(exc)
+    f["kind"] = kind
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO learning_items (" + ", ".join(_ITEM_COLUMNS) + ") VALUES ("
+                + ", ".join(["%s"] * len(_ITEM_COLUMNS)) + ") RETURNING id",
+                tuple(f[c] for c in _ITEM_COLUMNS),
+            )
+            new_id = cur.fetchone()[0]
+        return jsonify({"message": "Course added.", "id": new_id}), 201
+    except pg_errors.UniqueViolation:
+        return jsonify({"error": "A course with that link already exists."}), 409
+    except Exception:
+        logger.exception("admin_learning_create failed")
+        return jsonify({"error": "Could not add the course."}), 500
+
+
+@app.route("/api/admin/learning/<int:item_id>", methods=["PUT"])
+@require_admin
+def admin_learning_update(item_id):
+    data = request.get_json(silent=True) or {}
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT kind FROM learning_items WHERE id = %s", (item_id,))
+            row = cur.fetchone()
+            if row is None:
+                return jsonify({"error": "Course not found."}), 404
+            try:
+                kind, f = _learning_item_fields(data, existing_kind=row[0])
+            except InputError as exc:
+                return _bad_request(exc)
+            cols = [c for c in _ITEM_COLUMNS if c != "kind"]
+            cur.execute(
+                "UPDATE learning_items SET " + ", ".join(f"{c} = %s" for c in cols) + " WHERE id = %s",
+                tuple(f[c] for c in cols) + (item_id,),
+            )
+        return jsonify({"message": "Course saved."}), 200
+    except pg_errors.UniqueViolation:
+        return jsonify({"error": "A course with that link already exists."}), 409
+    except Exception:
+        logger.exception("admin_learning_update failed")
+        return jsonify({"error": "Could not save the course."}), 500
+
+
+def _lesson_fields(data):
+    media_type = _choice(data, "media_type", LEARNING_MEDIA_TYPES, default="video", label="Type")
+    duration = data.get("duration_min")
+    return {
+        "title": _text(data, "title", 200, required=True, label="Title"),
+        "media_type": media_type,
+        "media_url": _media_url(data, media_type),
+        "duration_min": None if duration in (None, "") else _whole_number(duration, "Minutes", minimum=1, maximum=1000),
+        "description": _text(data, "description", 1000, label="Description"),
+        "position": _whole_number(data.get("position", 1), "Order", minimum=1, maximum=10000),
+        "active": _bool_field(data, "active", True),
+    }
+
+
+_LESSON_COLUMNS = ("title", "media_type", "media_url", "duration_min", "description", "position", "active")
+
+
+@app.route("/api/admin/learning/<int:item_id>/lessons", methods=["POST"])
+@require_admin
+def admin_lesson_create(item_id):
+    data = request.get_json(silent=True) or {}
+    try:
+        f = _lesson_fields(data)
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT kind FROM learning_items WHERE id = %s", (item_id,))
+            row = cur.fetchone()
+            if row is None:
+                return jsonify({"error": "Course not found."}), 404
+            if row[0] != "braight":
+                return jsonify({"error": "Lessons can only be added to Braight courses."}), 400
+            cur.execute(
+                "INSERT INTO learning_lessons (item_id, " + ", ".join(_LESSON_COLUMNS) + ") VALUES (%s, "
+                + ", ".join(["%s"] * len(_LESSON_COLUMNS)) + ") RETURNING id",
+                (item_id,) + tuple(f[c] for c in _LESSON_COLUMNS),
+            )
+            new_id = cur.fetchone()[0]
+        return jsonify({"message": "Lesson added.", "id": new_id}), 201
+    except Exception:
+        logger.exception("admin_lesson_create failed")
+        return jsonify({"error": "Could not add the lesson."}), 500
+
+
+@app.route("/api/admin/learning/lessons/<int:lesson_id>", methods=["PUT"])
+@require_admin
+def admin_lesson_update(lesson_id):
+    data = request.get_json(silent=True) or {}
+    try:
+        f = _lesson_fields(data)
+    except InputError as exc:
+        return _bad_request(exc)
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "UPDATE learning_lessons SET " + ", ".join(f"{c} = %s" for c in _LESSON_COLUMNS) + " WHERE id = %s",
+                tuple(f[c] for c in _LESSON_COLUMNS) + (lesson_id,),
+            )
+            if cur.rowcount == 0:
+                return jsonify({"error": "Lesson not found."}), 404
+        return jsonify({"message": "Lesson saved."}), 200
+    except Exception:
+        logger.exception("admin_lesson_update failed")
+        return jsonify({"error": "Could not save the lesson."}), 500
+
+
+@app.route("/api/admin/learning/lessons/<int:lesson_id>", methods=["DELETE"])
+@require_admin
+def admin_lesson_delete(lesson_id):
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("DELETE FROM learning_lessons WHERE id = %s", (lesson_id,))
+            if cur.rowcount == 0:
+                return jsonify({"error": "Lesson not found."}), 404
+        return jsonify({"message": "Lesson deleted."}), 200
+    except Exception:
+        logger.exception("admin_lesson_delete failed")
+        return jsonify({"error": "Could not delete the lesson."}), 500
 
 
 if __name__ == "__main__":
