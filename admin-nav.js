@@ -20,7 +20,8 @@
       { label: 'Cohorts', href: 'Cohorts.html' },
       { label: 'Enrollments', href: 'Enrollments.html' },
       { label: 'Progress', href: 'Progress.html' },
-      { label: 'Applications', href: 'Applications.html' }
+      { label: 'Applications', href: 'Applications.html' },
+      { label: 'Learning Content', href: 'AdminLearning.html' }
     ]}
   ];
 
