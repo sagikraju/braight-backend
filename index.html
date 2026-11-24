@@ -3,23 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>brAIght — Harnessing AI for Sustainable Development</title>
+<title>brAIght — Safe, smart AI for teens</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' fill='none'%3E%3Cpath d='M20 4L33 9V19C33 27.5 27.5 33.5 20 36.5C12.5 33.5 7 27.5 7 19V9Z' stroke='%237A9471' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M13 20.5L18 25.5L27.5 14' stroke='%23C89B5C' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
   --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
-  --text:#2B3A4A; --sub:#5B6B7D;
+  --text:#2B3A4A; --sub:#5B6B7D; --mk1:#7A9471; --mk2:#C89B5C;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
-    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --mk1:#9CB79A; --mk2:#D9B77C;
   }
 }
 :root[data-theme="dark"] {
   --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
-  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --mk1:#9CB79A; --mk2:#D9B77C;
 }
 * { box-sizing:border-box; }
 html { scroll-padding-top:env(safe-area-inset-top,0px); }
@@ -33,7 +34,9 @@ a { color:inherit; }
 header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
 header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
 .brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand { display:inline-flex; align-items:center; gap:9px; }
 .brand .ai { color:var(--moss); }
+.brand.active, header a.brand.active { text-decoration:none !important; }
 nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; }
 nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
 nav a.on { color:var(--navy); border-bottom-color:var(--amber); }
@@ -115,12 +118,16 @@ nav a.active, .nav a.active, header a.active {
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:30px;height:30px">
+  <path d="M20 4L33 9V19C33 27.5 27.5 33.5 20 36.5C12.5 33.5 7 27.5 7 19V9Z" style="stroke:var(--mk1)" stroke-width="1.9" stroke-linejoin="round"/>
+  <path d="M13 20.5L18 25.5L27.5 14" style="stroke:var(--mk2)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="13" cy="20.5" r="1.6" style="fill:var(--mk2)"/><circle cx="27.5" cy="14" r="1.6" style="fill:var(--mk2)"/>
+  <path d="M18 25.5V30" style="stroke:var(--mk1)" stroke-width="1.6" stroke-linecap="round"/><circle cx="18" cy="30.5" r="1.2" style="fill:var(--mk1)"/>
+</svg><span>br<span class="ai">AI</span>ght</span></a>
     <nav>
       <a href="index.html#/schools">Schools &amp; Students</a>
       <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
-      <a href="SDG.html">SDG Goals</a>
-      <a href="sdg-dashboard.html">SDG Dashboard</a><a href="insights.html">Data Insights</a>
+      <a href="insights.html">Data Insights</a>
       <a href="Login.html">Login</a>
     </nav>
   </div>
@@ -132,22 +139,22 @@ nav a.active, .nav a.active, header a.active {
 <div class="page active" id="home">
   <div class="wrap">
     <div class="hero">
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:40px;height:40px">
-  <path d="M20 4C20 4 8 12 8 24C8 31.2 13.4 36 20 36C26.6 36 32 31.2 32 24C32 12 20 4 20 4Z" stroke="#7A9471" stroke-width="1.4"/>
-  <path d="M20 8V36" stroke="#7A9471" stroke-width="1.2"/>
-  <path d="M20 14L13 19M20 20L27 24M20 27L14 31" stroke="#C89B5C" stroke-width="1.2"/>
-  <circle cx="13" cy="19" r="1.4" fill="#C89B5C"/><circle cx="27" cy="24" r="1.4" fill="#C89B5C"/><circle cx="14" cy="31" r="1.4" fill="#C89B5C"/>
+      <svg class="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:48px;height:48px">
+  <path d="M20 4L33 9V19C33 27.5 27.5 33.5 20 36.5C12.5 33.5 7 27.5 7 19V9Z" style="stroke:var(--mk1)" stroke-width="1.9" stroke-linejoin="round"/>
+  <path d="M13 20.5L18 25.5L27.5 14" style="stroke:var(--mk2)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="13" cy="20.5" r="1.6" style="fill:var(--mk2)"/><circle cx="27.5" cy="14" r="1.6" style="fill:var(--mk2)"/>
+  <path d="M18 25.5V30" style="stroke:var(--mk1)" stroke-width="1.6" stroke-linecap="round"/><circle cx="18" cy="30.5" r="1.2" style="fill:var(--mk1)"/>
 </svg>
       <h1 style="margin-top:16px">br<span style="color:var(--moss)">AI</span>ght</h1>
-      <div class="tag">Harnessing AI for Sustainable Development</div>
-      <p class="lede">We teach students and freshers to use Python and generative AI on real sustainability problems: energy, water, and climate.</p>
+      <div class="tag">Safe, smart AI for teens</div>
+      <p class="lede">We help teens learn to use generative AI the right way: check what it says, spot bias, protect their privacy, and learn with it instead of copying from it.</p>
     </div>
 
-    <div class="grid cols-3">
+    <div class="grid cols-2">
       <a class="card path-card" href="#/schools">
         <span class="dot"></span>
         <h3>Schools &amp; Students</h3>
-        <p>A hands-on pilot that brings applied AI and the Sustainable Development Goals into the classroom.</p>
+        <p>A hands-on program that teaches teens to use generative AI safely and well, co-led with your own teacher.</p>
         <span class="go">See the schools program</span>
       </a>
       <a class="card path-card" href="#/freshers">
@@ -156,20 +163,14 @@ nav a.active, .nav a.active, header a.active {
         <p>An 8-week, portfolio-building program in Python data analysis, modeling, and generative AI.</p>
         <span class="go">See the freshers program</span>
       </a>
-      <a class="card path-card" href="SDG.html">
-        <span class="dot"></span>
-        <h3>SDG Goals</h3>
-        <p>The 17 UN Sustainable Development Goals our student and job-seeker projects are built around.</p>
-        <span class="go">See the 17 goals</span>
-      </a>
     </div>
 
     <section class="block" style="margin-top:48px">
       <h2>How we teach</h2>
       <div class="grid cols-3">
-        <div class="field"><div class="lab">1. Python for data</div><p>Analysis, visualization, and simple models on real energy, water, and climate datasets.</p></div>
-        <div class="field"><div class="lab">2. Claude &amp; generative AI</div><p>Turning findings into clear insights and practical recommendations.</p></div>
-        <div class="field"><div class="lab">3. Real SDG projects</div><p>Every participant finishes with a project they built and can present.</p></div>
+        <div class="field"><div class="lab">1. Understand it</div><p>How generative AI works, and why it sometimes gets things wrong.</p></div>
+        <div class="field"><div class="lab">2. Use it wisely</div><p>Writing clear prompts, checking facts, and spotting bias.</p></div>
+        <div class="field"><div class="lab">3. Protect yourself</div><p>Keeping personal information private and using AI honestly in school.</p></div>
       </div>
     </section>
 
@@ -186,46 +187,60 @@ nav a.active, .nav a.active, header a.active {
   <div class="wrap">
     <div class="hero">
       <div class="kicker">Schools &amp; Students</div>
-      <h1>Applied AI, in your classroom</h1>
-      <p class="lede">A small, low-risk pilot where students use AI to work on Sustainable Development Goals they already study.</p>
+      <h1>Safe AI habits, in your classroom</h1>
+      <p class="lede">A small, low-risk pilot that teaches teens to use generative AI safely, check what it tells them, and use it to learn.</p>
     </div>
 
     <section class="block">
       <div class="kicker">Why now</div>
-      <h2>Schools are already moving this way</h2>
-      <p class="lede" style="margin-top:0">NEP 2020 and CBSE's evolving skill frameworks are pushing AI literacy earlier into school life. The question is how to do it well.</p>
+      <h2>Schools are looking for safe AI</h2>
+      <p class="lede" style="margin-top:0">CBSE's computational thinking and AI curriculum for Classes 3 to 8 begins in 2026-27 and includes ethics and responsible AI. The question is how to teach it well.</p>
       <ul class="points" style="margin-top:20px">
-        <li>Students who apply AI to real problems retain more than those who only study it in theory.</li>
+        <li>Students will meet AI tools with or without the school. Teaching safe habits early is better than leaving them to learn alone.</li>
         <li>A hands-on pilot lets the school evaluate the idea with minimal risk before any wider commitment.</li>
       </ul>
     </section>
 
     <section class="block">
-      <div class="kicker">What students do</div>
-      <h2>Real problems, not abstract theory</h2>
+      <div class="kicker">What students learn</div>
+      <h2>Six habits for using AI well</h2>
       <div class="grid cols-3">
-        <div class="field"><h3 style="font-size:16px">Energy</h3><p style="margin-top:6px">Usage patterns and conservation ideas.</p></div>
-        <div class="field"><h3 style="font-size:16px">Water</h3><p style="margin-top:6px">Consumption and waste trends.</p></div>
-        <div class="field"><h3 style="font-size:16px">Climate &amp; air</h3><p style="margin-top:6px">Reading local environmental data.</p></div>
+        <div class="field"><h3 style="font-size:16px">How AI works</h3><p style="margin-top:6px">How a generative AI picks its words, and why that makes it sometimes wrong.</p></div>
+        <div class="field"><h3 style="font-size:16px">Clear prompts</h3><p style="margin-top:6px">Asking with a task, context and format, then improving the result.</p></div>
+        <div class="field"><h3 style="font-size:16px">Checking facts</h3><p style="margin-top:6px">Spotting confident wrong answers and verifying them with a reliable source.</p></div>
+        <div class="field"><h3 style="font-size:16px">Bias and fairness</h3><p style="margin-top:6px">Noticing whose voices can be missing from what AI has learned.</p></div>
+        <div class="field"><h3 style="font-size:16px">Privacy</h3><p style="margin-top:6px">Knowing what personal information never to type into an AI tool.</p></div>
+        <div class="field"><h3 style="font-size:16px">Learning, not copying</h3><p style="margin-top:6px">Using AI to understand and self-test, and doing the final work themselves.</p></div>
       </div>
     </section>
 
     <section class="block">
       <div class="kicker">How it works</div>
-      <h2>Built on real industry tools</h2>
+      <h2>Learning by doing</h2>
       <div class="grid cols-3">
-        <div class="field"><div class="lab">1. Explore with Python</div><p>Students work with real datasets in the language used in professional data science.</p></div>
-        <div class="field"><div class="lab">2. Insights with Claude &amp; generative AI</div><p>They summarize patterns, brainstorm solutions, and explain findings in plain language.</p></div>
-        <div class="field"><div class="lab">3. Propose solutions</div><p>Each student turns their analysis into a practical sustainability idea to present.</p></div>
+        <div class="field"><div class="lab">1. Try it together</div><p>Short activities, many of them without a screen, followed by guided practice on the projector.</p></div>
+        <div class="field"><div class="lab">2. Check and reflect</div><p>Students keep a fact-check log and a short journal, so they practise questioning what AI says.</p></div>
+        <div class="field"><div class="lab">3. Show what they learned</div><p>Teams finish with a project and a short showcase for the teacher and guests.</p></div>
       </div>
+    </section>
+
+    <section class="block">
+      <div class="kicker">Built with safety in mind</div>
+      <h2>How we protect students</h2>
+      <ul class="points">
+        <li>Only age-appropriate tools, and only those the school approves.</li>
+        <li>No personal information is entered into any AI tool.</li>
+        <li>A short note goes to parents, and consent is taken before any photos or student work are shared.</li>
+        <li>Every session has a version that works without internet.</li>
+      </ul>
     </section>
 
     <section class="block">
       <div class="kicker">The pilot</div>
       <h2>A small, low-risk starting point</h2>
       <div class="grid cols-2">
-        <div class="field"><div class="lab">Grade / section</div><p>One section, Grade 9 or 10</p></div>
-        <div class="field"><div class="lab">Duration</div><p>8 weekly sessions, 45–60 minutes</p></div>
+        <div class="field"><div class="lab">Grade / section</div><p>One section, Grades 7 to 8</p></div>
+        <div class="field"><div class="lab">Duration</div><p>8 weekly sessions, 60 minutes</p></div>
         <div class="field"><div class="lab">Format</div><p>Hands-on and project-based; no coding background needed</p></div>
         <div class="field"><div class="lab">Facilitation</div><p>Co-led with an existing CS or EVS teacher</p></div>
       </div>
@@ -235,14 +250,14 @@ nav a.active, .nav a.active, header a.active {
       <div class="kicker">For the school</div>
       <h2>What this means for you</h2>
       <ul class="points">
-        <li><b>Differentiation:</b> a tangible answer to "what is the school doing on AI?" for parents and the board.</li>
+        <li><b>Differentiation:</b> a tangible answer to "how is the school helping students use AI safely?" for parents and the board.</li>
         <li><b>Zero cost, zero disruption:</b> no budget or curriculum change needed to start, and it is co-facilitated with your own teacher.</li>
         <li><b>A showcase moment:</b> final-session student presentations make a ready-made feature for a newsletter or parent event.</li>
       </ul>
     </section>
 
     <div class="cta">
-      <h2>Pilot this with one section in October</h2>
+      <h2>Pilot this with one section this month</h2>
       <p>No budget or curriculum change required to start. Tell us about your school and we will reply with a session plan.</p>
       <a class="btn" href="Apply.html?kind=school">Request a pilot</a>
     </div>
@@ -263,18 +278,8 @@ nav a.active, .nav a.active, header a.active {
       <h2>The skills employers actually want</h2>
       <ul class="points">
         <li>Employers increasingly value demonstrated project experience over certificates alone.</li>
-        <li>Sustainability-focused AI is an emerging niche with far less competition than generic AI/ML roles.</li>
+        <li>Using generative AI well means checking its output and protecting data, not just writing prompts.</li>
       </ul>
-    </section>
-
-    <section class="block">
-      <div class="kicker">What you'll do</div>
-      <h2>Real problems, not abstract theory</h2>
-      <div class="grid cols-3">
-        <div class="field"><h3 style="font-size:16px">Energy</h3><p style="margin-top:6px">Usage patterns and conservation ideas.</p></div>
-        <div class="field"><h3 style="font-size:16px">Water</h3><p style="margin-top:6px">Consumption and waste trends.</p></div>
-        <div class="field"><h3 style="font-size:16px">Climate &amp; air</h3><p style="margin-top:6px">Reading local environmental data.</p></div>
-      </div>
     </section>
 
     <section class="block">
@@ -284,7 +289,7 @@ nav a.active, .nav a.active, header a.active {
         <div class="field"><div class="lab">1. Analyze</div><p>Work with real datasets using Python.</p></div>
         <div class="field"><div class="lab">2. Visualize</div><p>Turn raw data into clear charts that reveal patterns and trends.</p></div>
         <div class="field"><div class="lab">3. Model</div><p>Build simple predictive models to forecast trends and test scenarios.</p></div>
-        <div class="field"><div class="lab">4. Generate insights</div><p>Use Claude and generative AI to summarize findings and communicate clearly.</p></div>
+        <div class="field"><div class="lab">4. Generate insights</div><p>Use generative AI to summarize findings and communicate clearly, and check what it says.</p></div>
       </div>
     </section>
 
@@ -302,14 +307,14 @@ nav a.active, .nav a.active, header a.active {
       <div class="kicker">For you</div>
       <h2>What this means for you</h2>
       <ul class="points">
-        <li><b>A portfolio you can show:</b> real AI and sustainability projects for your resume and interviews.</li>
-        <li><b>Tools employers use:</b> hands-on fluency in Python, Claude, and generative AI, not just theory.</li>
-        <li><b>A differentiated niche:</b> sustainability-focused AI skills stand out in a crowded AI/ML market.</li>
+        <li><b>A portfolio you can show:</b> a complete data and AI project for your resume and interviews.</li>
+        <li><b>Tools employers use:</b> hands-on fluency in Python and generative AI, not just theory.</li>
+        <li><b>Responsible habits:</b> you learn to verify AI output and handle data carefully.</li>
       </ul>
     </section>
 
     <div class="cta">
-      <h2>Applications are open for the October cohort</h2>
+      <h2>Applications are open for this month's cohort</h2>
       <p>Send us a short note about your background and what you want to build. No prior AI experience required.</p>
       <a class="btn" href="Apply.html?kind=jobseeker">Apply now</a>
     </div>
@@ -319,14 +324,14 @@ nav a.active, .nav a.active, header a.active {
 </main>
 <footer>
   <div class="wrap">
-    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Safe, smart AI for teens</div>
     <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
   </div>
 </footer>
 
 <script>
   var pages = ['home','schools','freshers'];
-  var titles = { home:'brAIght — Harnessing AI for Sustainable Development', schools:'Schools & Students — brAIght', freshers:'Freshers & Job Seekers — brAIght' };
+  var titles = { home:'brAIght — Safe, smart AI for teens', schools:'Schools & Students — brAIght', freshers:'Freshers & Job Seekers — brAIght' };
   function route() {
     var r = (location.hash || '').replace(/^#\/?/, '');
     if (pages.indexOf(r) === -1) r = 'home';
@@ -334,7 +339,7 @@ nav a.active, .nav a.active, header a.active {
     document.title = titles[r];
     window.scrollTo(0, 0);
   }
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', function(){ route(); document.querySelectorAll('nav a').forEach(function(a){var h=a.getAttribute('href')||'';var i=h.indexOf('#');if(i>-1){var on=location.hash===h.slice(i);a.classList.toggle('active',on);a.setAttribute('aria-current',on?'page':'false');}}); });
   route();
 </script>
 <script>
@@ -344,8 +349,11 @@ nav a.active, .nav a.active, header a.active {
     const href=(a.getAttribute('href')||'').split('#')[0].split('?')[0].toLowerCase();
     if(!href || href.startsWith('http')) return;
     const target=href.split('/').pop()||'index.html';
-    const isHome=(path==='index.html'||path==='')&&(target==='index.html');
-    const isMatch=target===path || (path==='sdg.html'&&target==='sdg.html');
+    const rawHref=a.getAttribute('href')||'';
+    const hashPart=rawHref.indexOf('#')>-1?rawHref.slice(rawHref.indexOf('#')):'';
+    if(hashPart){const on=(path==='index.html'||path==='')&&location.hash===hashPart;a.classList.toggle('active',on);a.setAttribute('aria-current',on?'page':'false');return;}
+    const isHome=false;
+    const isMatch=target===path;
     a.classList.toggle('active',isHome||isMatch);
     a.setAttribute('aria-current',(isHome||isMatch)?'page':'false');
   });

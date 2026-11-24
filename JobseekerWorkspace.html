@@ -4,22 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jobseeker Workspace — brAIght</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' fill='none'%3E%3Cpath d='M20 4L33 9V19C33 27.5 27.5 33.5 20 36.5C12.5 33.5 7 27.5 7 19V9Z' stroke='%237A9471' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M13 20.5L18 25.5L27.5 14' stroke='%23C89B5C' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
   --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
-  --text:#2B3A4A; --sub:#5B6B7D;
+  --text:#2B3A4A; --sub:#5B6B7D; --mk1:#7A9471; --mk2:#C89B5C;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
-    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --mk1:#9CB79A; --mk2:#D9B77C;
   }
 }
 :root[data-theme="dark"] {
   --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
-  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --mk1:#9CB79A; --mk2:#D9B77C;
 }
 * { box-sizing:border-box; }
 html { scroll-padding-top:env(safe-area-inset-top,0px); }
@@ -33,7 +34,9 @@ a { color:inherit; }
 header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
 header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
 .brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand { display:inline-flex; align-items:center; gap:9px; }
 .brand .ai { color:var(--moss); }
+.auth-head .mark { display:block; margin:0 auto 14px; }
 header nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; align-items:center; }
 header nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
 header nav a:hover { color:var(--navy); }
@@ -65,6 +68,9 @@ main { min-height:60vh; }
 .theme:nth-child(1) { --accent:var(--amber); }
 .theme:nth-child(2) { --accent:var(--navy-soft); }
 .theme:nth-child(3) { --accent:var(--moss); }
+.theme:nth-child(4) { --accent:var(--amber); }
+.theme:nth-child(5) { --accent:var(--navy-soft); }
+.theme:nth-child(6) { --accent:var(--moss); }
 .theme p { margin:0; color:var(--sub); }
 
 .steps, .grid { list-style:none; margin:0; padding:0; display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
@@ -106,12 +112,15 @@ footer b { color:var(--navy); }
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="index.html">br<span class="ai">AI</span>ght</a>
+    <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:30px;height:30px">
+  <path d="M20 4L33 9V19C33 27.5 27.5 33.5 20 36.5C12.5 33.5 7 27.5 7 19V9Z" style="stroke:var(--mk1)" stroke-width="1.9" stroke-linejoin="round"/>
+  <path d="M13 20.5L18 25.5L27.5 14" style="stroke:var(--mk2)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="13" cy="20.5" r="1.6" style="fill:var(--mk2)"/><circle cx="27.5" cy="14" r="1.6" style="fill:var(--mk2)"/>
+  <path d="M18 25.5V30" style="stroke:var(--mk1)" stroke-width="1.6" stroke-linecap="round"/><circle cx="18" cy="30.5" r="1.2" style="fill:var(--mk1)"/>
+</svg><span>br<span class="ai">AI</span>ght</span></a>
     <nav>
       <a href="index.html#/schools">Schools &amp; Students</a>
       <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
-      <a href="SDG.html">SDG Goals</a>
-      <a href="sdg-dashboard.html">SDG Dashboard</a>
       <a href="insights.html">Data Insights</a>
       <button type="button" class="logout-btn" id="logout-btn">Log Out</button>
     </nav>
@@ -127,7 +136,7 @@ footer b { color:var(--navy); }
 
 <footer>
   <div class="wrap">
-    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Safe, smart AI for teens</div>
     <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
   </div>
 </footer>
@@ -143,7 +152,7 @@ footer b { color:var(--navy); }
 const PAGE = {
   "slug": "jobseeker",
   "label": "Jobseeker",
-  "intro": "Build one complete, portfolio-ready project by applying Python, visualization, modeling and generative AI to real energy, water and climate data.",
+  "intro": "Build one complete, portfolio-ready project by applying Python, visualization, modeling and generative AI to real datasets.",
   "glance": [
     {
       "label": "For",
@@ -163,37 +172,16 @@ const PAGE = {
     },
     {
       "label": "Next cohort",
-      "value": "October"
+      "value": "This month"
     }
   ],
-  "themes": {
-    "heading": "Your project themes",
-    "intro": "You will apply your skills to real Sustainable Development Goals using live, relatable datasets. Each participant leaves with one complete, portfolio-ready project.",
-    "items": [
-      {
-        "title": "Energy",
-        "desc": "Usage patterns and conservation ideas.",
-        "tag": "SDG 7"
-      },
-      {
-        "title": "Water",
-        "desc": "Consumption and waste trends.",
-        "tag": "SDG 6"
-      },
-      {
-        "title": "Climate & Air",
-        "desc": "Reading local environmental data.",
-        "tag": "SDG 13"
-      }
-    ]
-  },
   "path": {
     "heading": "How it works",
     "intro": "Built on real industry tools. Four steps from raw data to insights, then your portfolio project.",
     "steps": [
       {
         "title": "Analyze with Python",
-        "desc": "Work with real energy, water and climate datasets using Python, the same language used in professional data science."
+        "desc": "Work with real datasets using Python, the same language used in professional data science."
       },
       {
         "title": "Visualize",
@@ -205,11 +193,11 @@ const PAGE = {
       },
       {
         "title": "Generate insights with Claude and generative AI",
-        "desc": "Use AI tools to summarize findings, generate recommendations and communicate insights clearly."
+        "desc": "Use AI tools to summarize findings, generate recommendations and communicate insights clearly, and check what they tell you."
       },
       {
         "title": "Finish your portfolio project",
-        "desc": "Complete one real, demonstrable AI and sustainability project for your resume and interviews."
+        "desc": "Complete one real, demonstrable data and AI project for your resume and interviews."
       }
     ]
   },
@@ -220,7 +208,7 @@ const PAGE = {
       "items": [
         {
           "title": "Notebooks and datasets",
-          "desc": "Practice notebooks and the energy, water and climate data used in each session.",
+          "desc": "Practice notebooks and the data used in each session.",
           "tag": "Practice"
         },
         {
@@ -275,20 +263,8 @@ const PAGE = {
       "intro": "Sources and guides for your project and your day-to-day work with AI.",
       "items": [
         {
-          "title": "SDG Dashboard",
-          "desc": "Explore data about the Sustainable Development Goals.",
-          "tag": "Data",
-          "url": "sdg-dashboard.html"
-        },
-        {
-          "title": "UN SDG Data Portal",
-          "desc": "Official data for the Sustainable Development Goal indicators.",
-          "tag": "Data",
-          "url": "https://unstats.un.org/sdgs/dataportal"
-        },
-        {
           "title": "Our World in Data",
-          "desc": "Free charts and datasets on energy, water, climate and more.",
+          "desc": "Free charts and datasets on many topics.",
           "tag": "Data",
           "url": "https://ourworldindata.org"
         },
@@ -313,7 +289,7 @@ const PAGE = {
           "I built clear visualizations",
           "I built a simple predictive model",
           "I used AI tools to generate insights and recommendations",
-          "I chose my theme: Energy, Water or Climate & Air",
+          "I chose my project topic",
           "I finished my portfolio project",
           "I added it to my resume and portfolio"
         ]
@@ -386,8 +362,10 @@ function render(user) {
     '<h1>Welcome, ' + esc(name) + '</h1><p class="lede">' + esc(PAGE.intro) + '</p>' +
     factsHtml(PAGE.glance) + '</div>';
 
-  html += '<section class="block">' + blockHead(PAGE.themes.heading, PAGE.themes.intro) +
-    '<ul class="themes">' + PAGE.themes.items.map(themeCard).join('') + '</ul></section>';
+  if (PAGE.themes) {
+    html += '<section class="block">' + blockHead(PAGE.themes.heading, PAGE.themes.intro) +
+      '<ul class="themes">' + PAGE.themes.items.map(themeCard).join('') + '</ul></section>';
+  }
 
   html += '<section class="block">' + blockHead(PAGE.path.heading, PAGE.path.intro) +
     '<ol class="steps">' + PAGE.path.steps.map(stepItem).join('') + '</ol></section>';
