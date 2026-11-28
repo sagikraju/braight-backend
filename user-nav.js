@@ -28,7 +28,6 @@
     { label: 'My Workspace', href: home, match: ['studentworkspace.html', 'jobseekerworkspace.html', 'workspace.html'] },
     { label: 'My Learning', href: 'MyLearning.html' },
     { label: 'My Payments', href: 'MyPayments.html' },
-    { label: 'My Subscriptions', href: 'MySubscriptions.html' },
     { label: 'My Documents', href: 'MyDocuments.html' },
     { label: 'My Tools', href: 'MyTools.html', match: ['dailyphrasetranslator.html'] }
   ];
