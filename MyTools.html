@@ -120,6 +120,43 @@ a.tool:focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
 a.tool p { margin:0; color:var(--sub); font-size:14.5px; }
 .go { align-self:flex-start; font-weight:600; color:var(--navy); border-bottom:2px solid var(--amber); font-size:14px; margin-top:4px; }
 .tag { display:inline-block; align-self:flex-start; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 9px; }
+
+/* tools made by brAIght (from the admin "New tool") */
+.lcard { display:flex; flex-direction:column; gap:8px; height:100%; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 22px; }
+.lcard h3 { margin:2px 0 0; }
+.lc-meta { font-size:13px; color:var(--sub); }
+.lc-desc { margin:0; color:var(--sub); font-size:14.5px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; flex:1; }
+.lc-chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.chip { font-size:11.5px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 9px; }
+.chip.brand { color:var(--navy); border-color:var(--amber); background:rgba(200,155,92,0.2); }
+.lc-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:6px; }
+.btn.small { padding:7px 14px; font-size:14px; }
+.tbtn { background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 12px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; }
+.tbtn:hover { background:var(--border); }
+.lc-bar { height:6px; background:var(--border); border-radius:999px; overflow:hidden; }
+.lc-bar span { display:block; height:100%; background:var(--moss); }
+.emptybox { border:1px dashed var(--border); border-radius:12px; padding:22px; color:var(--sub); max-width:680px; }
+.emptybox h3 { margin:0 0 6px; }
+.note-sm { font-size:13px; color:var(--sub); margin:12px 0 0; max-width:70ch; }
+.flashbar { background:var(--panel); border:1px solid #A23B3B; color:#A23B3B; border-radius:8px; padding:8px 12px; font-size:14px; margin:12px 0 0; display:none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .flashbar { color:#E7A8A8; border-color:#E7A8A8; } }
+:root[data-theme="dark"] .flashbar { color:#E7A8A8; border-color:#E7A8A8; }
+.back { display:inline-block; margin:22px 0 6px; color:var(--navy); font-weight:600; text-decoration:none; border-bottom:2px solid var(--amber); }
+.cview { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:24px; align-items:start; margin-top:12px; }
+.player { width:100%; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; }
+.player iframe, .player video { width:100%; height:100%; border:0; display:block; }
+.player.audio { aspect-ratio:auto; background:var(--panel); border:1px solid var(--border); padding:18px; }
+.player audio { width:100%; }
+.player.article { aspect-ratio:auto; background:var(--panel); border:1px solid var(--border); padding:24px; }
+.lessons { list-style:none; margin:0; padding:0; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--panel); }
+.lessons li { display:flex; gap:10px; align-items:flex-start; padding:11px 14px; border-bottom:1px solid var(--border); }
+.lessons li:last-child { border-bottom:none; }
+.lessons li.cur { background:var(--bg); box-shadow:inset 3px 0 0 var(--amber); }
+.lessons input { margin-top:4px; width:17px; height:17px; accent-color:var(--moss); flex-shrink:0; }
+.lessons button.pick { background:none; border:none; padding:0; text-align:left; font:inherit; color:var(--text); cursor:pointer; flex:1; min-width:0; }
+.lessons button.pick:hover b { text-decoration:underline; }
+.lessons .lm { display:block; font-size:12.5px; color:var(--sub); }
+@media (max-width:900px) { .cview { grid-template-columns:minmax(0,1fr); } }
 </style>
 </head>
 <body>
@@ -160,14 +197,217 @@ a.tool p { margin:0; color:var(--sub); font-size:14.5px; }
 <script>
 function esc(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
 UserPage.start(function (user, root) {
-  root.innerHTML =
-    '<div class="wrap"><div class="hero"><div class="kicker">My Tools</div>' +
-    '<h1>Your tools</h1>' +
-    '<p class="lede">Handy tools to use alongside your program.</p></div>' +
-    '<section class="block"><ul class="tools">' +
-    '<li><a class="tool" href="DailyPhraseTranslator.html"><span class="tag">Language</span><h3>Daily phrase translator</h3>' +
-    '<p>Pick a language and see 25 everyday English sentences next to their translation.</p><span class="go">Open the translator</span></a></li>' +
-    '</ul></section></div>';
+  var TOPICS = { python: 'Python', genai: 'Gen AI', data: 'Data', other: 'Other' };
+  var LEVELS = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
+  var tools = [];                 // tools made by brAIght (may be empty, or unavailable)
+  var lessonsByTool = {};
+  var currentLessonId = null;
+
+  root.innerHTML = '<div class="wrap"><div id="tl-body"></div></div>';
+  var body = document.getElementById('tl-body');
+  var flashTimer = null;
+  function flash(msg) {
+    var f = document.getElementById('tl-flash'); if (!f) return;
+    f.textContent = msg; f.style.display = 'block';
+    clearTimeout(flashTimer); flashTimer = setTimeout(function () { f.style.display = 'none'; }, 5000);
+  }
+  function route() { var m = /^#tool-(\d+)$/.exec(location.hash || ''); return m ? m[1] : null; }
+  function byId(id) { for (var i = 0; i < tools.length; i++) if (String(tools[i].id) === String(id)) return tools[i]; return null; }
+  function safeHttps(u) { return typeof u === 'string' && /^https:\/\/[^\s]+$/.test(u); }
+
+  /* ---------- list ---------- */
+  function toolCard(t) {
+    var meta = [t.duration, t.price].filter(Boolean).map(esc).join(' · ');
+    var bar = '';
+    if (t.lessonCount > 0) {
+      var pct = Math.round(t.doneCount / t.lessonCount * 100);
+      bar = '<div class="lc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Progress"><span style="width:' + pct + '%"></span></div>' +
+            '<div class="lc-meta">' + t.doneCount + ' of ' + t.lessonCount + ' lessons done</div>';
+    }
+    var action = t.lessonCount > 0
+      ? '<a class="btn small" href="#tool-' + esc(t.id) + '">' + (t.doneCount > 0 ? 'Continue' : 'Open tool') + '</a>'
+      : '<span class="chip">Lessons coming soon</span>';
+    return '<li><article class="lcard"><div class="lc-chips"><span class="chip brand">brAIght</span>' +
+      '<span class="chip">' + esc(TOPICS[t.topic] || t.topic) + '</span><span class="chip">' + esc(LEVELS[t.level] || t.level) + '</span></div>' +
+      '<h3>' + esc(t.title) + '</h3>' + (meta ? '<div class="lc-meta">' + meta + '</div>' : '') +
+      (t.description ? '<p class="lc-desc">' + esc(t.description) + '</p>' : '') + bar +
+      '<div class="lc-actions">' + action + '</div></article></li>';
+  }
+  function viewList() {
+    return '<div class="hero"><div class="kicker">My Tools</div><h1>Your tools</h1>' +
+      '<p class="lede">Handy tools to use alongside your program.</p></div>' +
+      '<section class="block"><ul class="tools">' +
+      '<li><a class="tool" href="DailyPhraseTranslator.html"><span class="tag">Language</span><h3>Daily phrase translator</h3>' +
+      '<p>Pick a language and see 25 everyday English sentences next to their translation.</p><span class="go">Open the translator</span></a></li>' +
+      tools.map(toolCard).join('') + '</ul></section>';
+  }
+
+  /* ---------- tool view (same player as My Learning) ---------- */
+  function ytId(u) {
+    try {
+      var x = new URL(u), h = x.hostname.replace(/^www\.|^m\./, ''), id = null;
+      if (h === 'youtu.be') id = x.pathname.slice(1).split('/')[0];
+      else if (h === 'youtube.com' || h === 'youtube-nocookie.com') id = x.searchParams.get('v') || (/^\/(embed|shorts|live)\/([^/]+)/.exec(x.pathname) || [])[2];
+      return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+    } catch (e) { return null; }
+  }
+  function embedFor(u) {
+    var y = ytId(u);
+    if (y) return 'https://www.youtube-nocookie.com/embed/' + y;
+    try {
+      var x = new URL(u), h = x.hostname.replace(/^www\./, '');
+      var v = h === 'vimeo.com' ? /^\/(\d+)/.exec(x.pathname) : h === 'player.vimeo.com' ? /^\/video\/(\d+)/.exec(x.pathname) : null;
+      if (v) return 'https://player.vimeo.com/video/' + v[1];
+      var s = h === 'open.spotify.com' ? /^\/(?:embed\/)?(episode|show)\/([A-Za-z0-9]{22})/.exec(x.pathname) : null;
+      if (s) return 'https://open.spotify.com/embed/' + s[1] + '/' + s[2];
+    } catch (e) { /* not a URL */ }
+    return null;
+  }
+  function isUpload(u) { return /^upload:[0-9]{1,12}$/.test(u); }
+  function playableSrc(u) { return safeHttps(u) || isUpload(u) || /^media\/[A-Za-z0-9][A-Za-z0-9._ \-\/]*$/.test(u) && u.indexOf('..') === -1; }
+
+  function renderPlayer(lesson, onEnded) {
+    var box = document.getElementById('player');
+    box.className = 'player'; box.textContent = '';
+    var u = lesson.mediaUrl, el;
+    if (!playableSrc(u)) { box.textContent = 'This lesson cannot be shown.'; return; }
+    var embed = lesson.mediaType !== 'article' ? embedFor(u) : null;
+    if (embed) {
+      el = document.createElement('iframe');
+      el.src = embed; el.title = lesson.title; el.loading = 'lazy';
+      el.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+      el.allowFullscreen = true; el.referrerPolicy = 'strict-origin-when-cross-origin';
+      if (/spotify/.test(embed)) { box.classList.add('audio'); el.style.height = '232px'; }
+    } else if (lesson.mediaType === 'video' || lesson.mediaType === 'audio') {
+      if (lesson.mediaType === 'audio') box.classList.add('audio');
+      el = document.createElement(lesson.mediaType === 'video' ? 'video' : 'audio');
+      el.controls = true; el.preload = 'metadata'; if (lesson.mediaType === 'video') el.playsInline = true;
+      el.addEventListener('ended', onEnded);
+      var lastTouch = 0;     // watching counts as activity, so the idle logout does not cut in mid-lesson
+      el.addEventListener('timeupdate', function () {
+        var now = Date.now();
+        if (now - lastTouch > 15000 && AppSession.touch) { lastTouch = now; AppSession.touch(); }
+      });
+      if (isUpload(u)) {
+        AppSession.apiFetch('/api/learning/lessons/' + encodeURIComponent(lesson.id) + '/media')
+          .then(function (res) { return res.ok ? res.json() : Promise.reject(); })
+          .then(function (d) {
+            if (!/^\/api\/learning\/media\/[0-9]+\?e=[0-9]+&t=[0-9a-f]{64}$/.test(d.path || '')) return Promise.reject();
+            el.src = 'https://braight-backend.onrender.com' + d.path;
+          })
+          .catch(function () { if (!AppSession.isEnded()) { box.textContent = 'This lesson could not be loaded. Please try again.'; } });
+      } else { el.src = u; }
+    } else {
+      box.classList.add('article');
+      el = document.createElement('a'); el.className = 'btn'; el.textContent = 'Read the article ↗';
+      el.href = u; el.target = '_blank'; el.rel = 'noopener noreferrer';
+    }
+    box.appendChild(el);
+  }
+
+  var BACK = '<a class="back" href="#">← My Tools</a>';
+  async function viewTool(id) {
+    var t = byId(id);
+    if (!t) return BACK + '<div class="emptybox"><h3>Tool not found</h3><p style="margin:0">This tool is no longer available.</p></div>';
+    var lessons = lessonsByTool[id];
+    if (!lessons) {
+      body.innerHTML = BACK + '<p class="lede">Loading…</p>';
+      try {
+        var res = await AppSession.apiFetch('/api/learning/' + encodeURIComponent(id) + '/lessons');
+        if (AppSession.isEnded()) return null;
+        if (!res.ok) throw new Error('x');
+        lessons = lessonsByTool[id] = (await res.json()).lessons || [];
+      } catch (e) {
+        if (AppSession.isEnded()) return null;
+        return BACK + '<div class="emptybox"><h3>Could not load this tool</h3><p style="margin:0">Please try again in a moment.</p></div>';
+      }
+    }
+    if (route() !== String(id)) return null;
+    if (!lessons.length) return BACK + '<div class="emptybox"><h3>Coming soon</h3><p style="margin:0">This tool has no lessons yet.</p></div>';
+    if (!lessons.some(function (l) { return l.id === currentLessonId; })) {
+      currentLessonId = (lessons.filter(function (l) { return !l.done; })[0] || lessons[0]).id;
+    }
+    var cur = lessons.filter(function (l) { return l.id === currentLessonId; })[0];
+    var n = lessons.filter(function (l) { return l.done; }).length, pct = Math.round(n / lessons.length * 100);
+    return BACK + '<div id="tl-flash" class="flashbar" role="alert"></div>' +
+      '<div class="cview"><div><div class="player" id="player"></div>' +
+      '<h2 style="margin:16px 0 4px">' + esc(cur.title) + '</h2>' +
+      '<div class="lc-meta">' + esc(t.title) + (cur.durationMin ? ' · ' + cur.durationMin + ' min' : '') + '</div>' +
+      (cur.description ? '<p style="color:var(--sub)">' + esc(cur.description) + '</p>' : '') +
+      '<p><button type="button" class="tbtn" id="lesson-done">' + (cur.done ? 'Completed ✓ Undo' : 'Mark lesson as complete') + '</button></p>' +
+      (t.description ? '<p class="note-sm">' + esc(t.description) + '</p>' : '') +
+      '</div><div><div class="lc-bar" id="course-bar" style="margin-bottom:8px"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="lc-meta" id="course-count" style="margin-bottom:10px">' + n + ' of ' + lessons.length + ' lessons done</div>' +
+      '<ol class="lessons">' + lessons.map(function (l, i) {
+        return '<li' + (l.id === currentLessonId ? ' class="cur"' : '') + '><input type="checkbox" data-done="' + esc(l.id) + '"' + (l.done ? ' checked' : '') +
+          ' aria-label="Mark lesson ' + (i + 1) + ' as complete"><button type="button" class="pick" data-pick="' + esc(l.id) + '"><b>' + (i + 1) + '. ' + esc(l.title) + '</b>' +
+          '<span class="lm">' + esc({ video: 'Video', audio: 'Podcast', article: 'Article' }[l.mediaType] || '') + (l.durationMin ? ' · ' + l.durationMin + ' min' : '') + '</span></button></li>';
+      }).join('') + '</ol></div></div>';
+  }
+
+  async function setLessonDone(lessonId, done) {
+    var id = route(), lessons = lessonsByTool[id] || [], t = byId(id);
+    var l = lessons.filter(function (x) { return x.id === lessonId; })[0];
+    if (!l || !t || l.done === done) return;
+    l.done = done; updateUI();
+    try {
+      var res = await AppSession.apiFetch('/api/learning/lessons/' + encodeURIComponent(lessonId) + '/done', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: done }) });
+      if (AppSession.isEnded()) return;
+      if (!res.ok) throw new Error('x');
+      var s = await res.json(); t.doneCount = s.doneCount; t.lessonCount = s.lessonCount;
+    } catch (e) {
+      if (AppSession.isEnded()) return;
+      l.done = !done; updateUI(); flash('We could not save that change. Please check your connection and try again.');
+    }
+  }
+  function updateUI() {      // update in place so a playing video is not restarted
+    var id = route(); if (!id) return;
+    var lessons = lessonsByTool[id] || [], n = 0;
+    Array.prototype.forEach.call(body.querySelectorAll('input[data-done]'), function (cb) {
+      var l = lessons.filter(function (x) { return String(x.id) === cb.dataset.done; })[0];
+      if (l) { cb.checked = l.done; if (l.done) n++; }
+    });
+    var cur = lessons.filter(function (l) { return l.id === currentLessonId; })[0];
+    var btn = document.getElementById('lesson-done');
+    if (btn && cur) btn.textContent = cur.done ? 'Completed ✓ Undo' : 'Mark lesson as complete';
+    var bar = document.getElementById('course-bar'); if (bar) bar.firstChild.style.width = (lessons.length ? Math.round(n / lessons.length * 100) : 0) + '%';
+    var cnt = document.getElementById('course-count'); if (cnt) cnt.textContent = n + ' of ' + lessons.length + ' lessons done';
+  }
+
+  async function draw() {
+    var id = route(), html;
+    if (id) { html = await viewTool(id); if (html === null) return; } else html = viewList();
+    body.innerHTML = html;
+    if (id) {
+      var lessons = lessonsByTool[id] || [];
+      var cur = lessons.filter(function (l) { return l.id === currentLessonId; })[0];
+      if (cur && document.getElementById('player')) renderPlayer(cur, function () { setLessonDone(cur.id, true); });
+    }
+  }
+  window.addEventListener('hashchange', function () { if (!AppSession.isEnded()) { currentLessonId = null; draw(); window.scrollTo(0, 0); } });
+  body.addEventListener('click', function (e) {
+    var t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.pick) { currentLessonId = Number(t.dataset.pick); draw(); return; }
+    if (t.id === 'lesson-done') {
+      var ls = lessonsByTool[route()] || [];
+      var c = ls.filter(function (l) { return l.id === currentLessonId; })[0];
+      if (c) setLessonDone(c.id, !c.done);
+    }
+  });
+  body.addEventListener('change', function (e) {
+    var box = e.target; if (box && box.dataset && box.dataset.done) setLessonDone(Number(box.dataset.done), box.checked);
+  });
+
+  draw();                                                   // the translator card shows straight away
+  (async function loadTools() {
+    try {
+      var res = await AppSession.apiFetch('/api/tools');
+      if (AppSession.isEnded()) return;
+      if (res.ok) tools = (await res.json()).items || [];
+    } catch (e) { if (AppSession.isEnded()) return; }       // no tools yet: just show the built-in ones
+    draw();
+  })();
 });
 </script>
 </body>

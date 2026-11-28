@@ -174,28 +174,29 @@ td.actions { white-space:nowrap; text-align:right; padding-right:12px; }
 
       <section id="page-content">
         <h1>Learning Content</h1>
-        <p class="lede">Courses shown on the My Learning page. Add links to good courses on the web, and build brAIght's own courses from videos and podcasts.</p>
+        <p class="lede">Courses shown on the My Learning page, and tools shown on the My Tools page. Add links to good courses on the web, and build brAIght's own courses and tools from videos and podcasts.</p>
         <div id="flash" role="status" aria-live="polite"></div>
 
         <div class="toolbar">
           <div class="left">
             <label for="f-kind">Show</label>
             <select id="f-kind">
-              <option value="">All courses</option>
+              <option value="">All courses and tools</option>
               <option value="braight">Braight courses</option>
               <option value="external">Courses on the web</option>
+              <option value="tool">Braight tools</option>
             </select>
           </div>
-          <div class="right"><button type="button" class="btn" id="btn-new">New course</button></div>
+          <div class="right"><button type="button" class="btn" id="btn-new">New course</button><button type="button" class="btn" id="btn-new-tool">New tool</button></div>
         </div>
 
         <div class="table-container">
           <table>
             <thead><tr>
-              <th>Course</th><th>Topic</th><th>Audience</th><th>Status</th>
+              <th>Title</th><th>Topic</th><th>Audience</th><th>Status</th>
               <th>Subscribed</th><th>Saved</th><th>Completed</th><th><span class="sr-only">Actions</span></th>
             </tr></thead>
-            <tbody id="tbody"><tr><td colspan="8" class="empty">Loading courses...</td></tr></tbody>
+            <tbody id="tbody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
           </table>
         </div>
 
@@ -205,12 +206,13 @@ td.actions { white-space:nowrap; text-align:right; padding-right:12px; }
             <h3 id="m-item-title">New course</h3>
             <div class="form-error" id="i-error" role="alert"></div>
             <div class="form-grid">
-              <div class="field"><label for="i-kind">Kind</label>
+              <div class="field" id="i-kind-wrap"><label for="i-kind">Kind</label>
                 <select id="i-kind"><option value="braight">Braight course (our videos / podcasts)</option><option value="external">Course on the web (a link)</option></select></div>
+              <div class="field" id="i-kind-fixed" style="display:none"><label for="i-kind-text">Kind</label><input type="text" id="i-kind-text" value="Braight" disabled></div>
               <div class="field"><label for="i-topic">Topic</label>
                 <select id="i-topic"><option value="python">Python</option><option value="genai">Gen AI</option><option value="data">Data</option><option value="other">Other</option></select></div>
               <div class="field full"><label for="i-title">Title</label><input type="text" id="i-title" maxlength="200"></div>
-              <p class="hint full" id="i-braight-hint" style="margin:0 0 4px">After you save a Braight course, a window opens where you add its videos and podcasts: upload a file or paste a link.</p>
+              <p class="hint full" id="i-braight-hint" data-course="After you save a Braight course, a window opens where you add its videos and podcasts: upload a file or paste a link." data-tool="After you save a Braight tool, a window opens where you add its videos and podcasts: upload a file or paste a link." style="margin:0 0 4px">After you save a Braight course, a window opens where you add its videos and podcasts: upload a file or paste a link.</p>
               <div class="field full" id="i-url-wrap"><label for="i-url">Course link</label>
                 <input type="url" id="i-url" maxlength="500" placeholder="https://..."><p class="hint">The page where the course opens. Must start with https://</p></div>
               <div class="field"><label for="i-provider">Provider</label><input type="text" id="i-provider" maxlength="100" placeholder="e.g. Kaggle, brAIght"></div>
@@ -272,7 +274,7 @@ td.actions { white-space:nowrap; text-align:right; padding-right:12px; }
 
 <footer>
   <div class="wrap">
-    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Harnessing AI for Sustainable Development</div>
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Safe, smart AI for teens</div>
     <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
   </div>
 </footer>
@@ -342,6 +344,8 @@ document.addEventListener('click', function (e) {
 
 let items = [];
 let editingId = null;
+let editingType = 'course';          // 'course' or 'tool'
+let toolsSupported = false;          // set by the server (itemTypes) once it can store tools
 let lessonItemId = null;
 let editingLessonId = null;
 const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
@@ -350,7 +354,11 @@ const AUDIENCE = { both: 'Students + Jobseekers', student: 'Students', jobseeker
 
 function pageInit() {
   document.getElementById('f-kind').addEventListener('change', render);
-  document.getElementById('btn-new').addEventListener('click', function () { openItem(null); });
+  document.getElementById('btn-new').addEventListener('click', function () { openItem(null, 'course'); });
+  document.getElementById('btn-new-tool').addEventListener('click', function () {
+    if (!toolsSupported) { flash('Tools need a server update before they can be saved. Nothing was created.', 'err'); return; }
+    openItem(null, 'tool');
+  });
   document.getElementById('i-cancel').addEventListener('click', function () { hide('m-item'); });
   document.getElementById('i-save').addEventListener('click', saveItem);
   document.getElementById('i-kind').addEventListener('change', syncKind);
@@ -375,18 +383,19 @@ function pageInit() {
 function deleteCourse(btn) {
   const item = find(btn.dataset.cdel); if (!item) return;
   if (btn.dataset.armed !== '1') {            // first click asks, second click deletes
-    btn.dataset.armed = '1'; btn.classList.add('armed'); btn.textContent = 'Delete course?';
+    btn.dataset.armed = '1'; btn.classList.add('armed'); btn.textContent = isTool(item) ? 'Delete tool?' : 'Delete course?';
     btn.title = 'Click again to delete "' + item.title + '" for good';
-    setTimeout(function () { if (btn.isConnected) { btn.dataset.armed = ''; btn.classList.remove('armed'); btn.innerHTML = TRASH; btn.title = 'Delete course'; } }, 4000);
+    setTimeout(function () { if (btn.isConnected) { btn.dataset.armed = ''; btn.classList.remove('armed'); btn.innerHTML = TRASH; btn.title = isTool(item) ? 'Delete tool' : 'Delete course'; } }, 4000);
     return;
   }
   btn.disabled = true;
   api('/api/admin/learning/' + encodeURIComponent(item.id), 'DELETE').then(function (r) {
     if (!r) return;
-    if (!r.ok) { btn.disabled = false; flash((r.data && r.data.error) || 'Could not delete the course.', 'err'); return; }
-    flash('Course deleted.', 'ok'); load();
+    if (!r.ok) { btn.disabled = false; flash((r.data && r.data.error) || (isTool(item) ? 'Could not delete the tool.' : 'Could not delete the course.'), 'err'); return; }
+    flash(isTool(item) ? 'Tool deleted.' : 'Course deleted.', 'ok'); load();
   });
 }
+function isTool(i) { return !!i && i.item_type === 'tool'; }
 function find(id) { return items.find(function (i) { return String(i.id) === String(id); }); }
 function setBody(msg, isError) {
   document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty' + (isError ? ' err' : '') + '">' + esc(msg) + '</td></tr>';
@@ -396,44 +405,59 @@ async function load() {
   if (!r) return;
   if (!r.ok) { setBody('Failed to load courses.', true); return; }
   items = r.data.items || [];
+  toolsSupported = Array.isArray(r.data.itemTypes) && r.data.itemTypes.indexOf('tool') !== -1;
   render();
   if (lessonItemId && !document.getElementById('m-lessons').style.display.startsWith('none')) drawLessons();
 }
 function render() {
   const f = document.getElementById('f-kind').value;
-  const list = items.filter(function (i) { return !f || i.kind === f; });
-  if (!list.length) { setBody(items.length ? 'No courses match this filter.' : 'No courses yet. Use "New course" to add one.'); return; }
+  const list = items.filter(function (i) {
+    if (!f) return true;
+    if (f === 'tool') return isTool(i);
+    return i.kind === f && !isTool(i);          // courses only; tools have their own filter
+  });
+  if (!list.length) { setBody(items.length ? 'Nothing matches this filter.' : 'No courses or tools yet. Use "New course" or "New tool" to add one.'); return; }
   document.getElementById('tbody').innerHTML = list.map(function (i) {
     const lessonBtn = i.kind === 'braight'
       ? '<button type="button" class="btn btn-ghost btn-small" data-lessons="' + esc(i.id) + '">Lessons (' + i.lessons.length + ')</button> ' : '';
     return '<tr>' +
-      '<td><strong>' + esc(i.title) + '</strong><span class="sub">' + (i.kind === 'braight' ? 'Braight course' : esc(i.provider || 'Course on the web')) +
+      '<td><strong>' + esc(i.title) + '</strong><span class="sub">' + (isTool(i) ? 'Braight tool' : i.kind === 'braight' ? 'Braight course' : esc(i.provider || 'Course on the web')) +
         (i.featured ? ' · featured' : '') + '</span></td>' +
       '<td>' + esc(TOPICS[i.topic] || i.topic) + '</td>' +
       '<td>' + esc(AUDIENCE[i.audience] || i.audience) + '</td>' +
       '<td>' + badge(i.active ? 'visible' : 'hidden', i.active ? 'green' : 'gray') + '</td>' +
       '<td>' + esc(i.subscribers) + '</td><td>' + esc(i.savers) + '</td><td>' + esc(i.completers) + '</td>' +
       '<td class="actions">' + lessonBtn + '<button type="button" class="btn btn-ghost btn-small" data-edit="' + esc(i.id) + '">Edit</button> ' +
-      '<button type="button" class="btn btn-ghost btn-small btn-danger btn-icon" data-cdel="' + esc(i.id) + '" title="Delete course" aria-label="Delete course ' + esc(i.title) + '">' + TRASH + '</button></td></tr>';
+      '<button type="button" class="btn btn-ghost btn-small btn-danger btn-icon" data-cdel="' + esc(i.id) + '" title="Delete ' + (isTool(i) ? 'tool' : 'course') + '" aria-label="Delete ' + (isTool(i) ? 'tool' : 'course') + ' ' + esc(i.title) + '">' + TRASH + '</button></td></tr>';
   }).join('');
 }
 
 /* ----- course form ----- */
 function syncKind() {
-  document.getElementById('i-braight-hint').style.display = val('i-kind') === 'braight' ? '' : 'none';
-  const ext = document.getElementById('i-kind').value === 'external';
+  const tool = editingType === 'tool';
+  const hint = document.getElementById('i-braight-hint');
+  hint.textContent = tool ? hint.dataset.tool : hint.dataset.course;
+  hint.style.display = (tool || val('i-kind') === 'braight') ? '' : 'none';
+  const ext = !tool && document.getElementById('i-kind').value === 'external';
   document.getElementById('i-url-wrap').style.display = ext ? '' : 'none';
+  // A tool is always a Braight item: Kind and Provider are fixed, with no drop-down
+  document.getElementById('i-kind-wrap').style.display = tool ? 'none' : '';
+  document.getElementById('i-kind-fixed').style.display = tool ? '' : 'none';
+  const prov = document.getElementById('i-provider');
+  prov.readOnly = tool; prov.style.opacity = tool ? '0.7' : '';
 }
-function openItem(i) {
+function openItem(i, type) {
   editingId = i ? i.id : null;
-  document.getElementById('m-item-title').textContent = i ? 'Edit course' : 'New course';
+  editingType = i ? (isTool(i) ? 'tool' : 'course') : (type || 'course');
+  const noun = editingType === 'tool' ? 'tool' : 'course';
+  document.getElementById('m-item-title').textContent = (i ? 'Edit ' : 'New ') + noun;
   setError('i-error', '');
   const kind = document.getElementById('i-kind');
-  kind.value = i ? i.kind : 'braight'; kind.disabled = !!i;          // kind cannot change after creation
+  kind.value = editingType === 'tool' ? 'braight' : (i ? i.kind : 'braight'); kind.disabled = !!i;          // kind cannot change after creation
   document.getElementById('i-topic').value = i ? i.topic : 'python';
   document.getElementById('i-title').value = i ? i.title : '';
   document.getElementById('i-url').value = (i && i.url) || '';
-  document.getElementById('i-provider').value = i ? (i.provider || '') : 'brAIght';
+  document.getElementById('i-provider').value = editingType === 'tool' ? 'brAIght' : (i ? (i.provider || '') : 'brAIght');
   document.getElementById('i-level').value = i ? i.level : 'beginner';
   document.getElementById('i-duration').value = (i && i.duration) || '';
   document.getElementById('i-price').value = i ? (i.price || '') : 'Free';
@@ -449,7 +473,7 @@ function openItem(i) {
 async function saveItem() {
   setError('i-error', '');
   const payload = {
-    kind: val('i-kind'), topic: val('i-topic'), title: val('i-title'), url: val('i-url'), provider: val('i-provider'),
+    kind: editingType === 'tool' ? 'braight' : val('i-kind'), item_type: editingType, topic: val('i-topic'), title: val('i-title'), url: editingType === 'tool' ? '' : val('i-url'), provider: editingType === 'tool' ? 'brAIght' : val('i-provider'),
     level: val('i-level'), duration: val('i-duration'), price: val('i-price'), audience: val('i-audience'),
     sort_order: Number(val('i-sort') || 0), description: val('i-desc'),
     featured: document.getElementById('i-featured').checked, active: document.getElementById('i-active').checked
@@ -461,7 +485,7 @@ async function saveItem() {
                       : await api('/api/admin/learning', 'POST', payload);
   btn.disabled = false;
   if (!r) return;
-  if (!r.ok) { setError('i-error', r.data.error || 'Could not save the course.'); return; }
+  if (!r.ok) { setError('i-error', r.data.error || (editingType === 'tool' ? 'Could not save the tool.' : 'Could not save the course.')); return; }
   hide('m-item'); flash(r.data.message || 'Saved.', 'ok');
   if (!editingId && payload.kind === 'braight' && r.data.id) lessonItemId = null;
   await load();

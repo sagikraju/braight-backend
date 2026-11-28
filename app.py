@@ -15,6 +15,12 @@ Required one-time database migration (run BEFORE deploying this file):
   CREATE UNIQUE INDEX IF NOT EXISTS users_admin_session_hash_idx
     ON users (admin_session_hash) WHERE admin_session_hash IS NOT NULL;
 
+Required one-time database migration for "My Tools" (run BEFORE deploying this file):
+
+  ALTER TABLE learning_items
+    ADD COLUMN IF NOT EXISTS item_type TEXT NOT NULL DEFAULT 'course'
+    CHECK (item_type IN ('course', 'tool'));
+
 Note: the admin_session_* columns now hold the single live session of EVERY
 user (admins and regular users), despite the column names.
 
@@ -1612,6 +1618,7 @@ def delete_document(doc_id):
 # Trending articles come from the public DEV Community API and are cached for an hour.
 
 LEARNING_KINDS = {"external", "braight"}
+LEARNING_ITEM_TYPES = {"course", "tool"}      # a tool is a Braight item shown on My Tools instead of My Learning
 LEARNING_TOPICS = {"python", "genai", "data", "other"}
 LEARNING_LEVELS = {"beginner", "intermediate", "advanced"}
 LEARNING_AUDIENCES = {"student", "jobseeker", "both"}
@@ -1619,7 +1626,7 @@ LEARNING_MEDIA_TYPES = {"video", "audio", "article"}
 LEARNING_STATUSES = {"none", "in_progress", "completed"}
 
 LEARNING_LIST_SQL = """
-    SELECT i.id, i.kind, i.title, i.provider, i.url, i.topic, i.level, i.duration_text,
+    SELECT i.id, i.kind, i.item_type, i.title, i.provider, i.url, i.topic, i.level, i.duration_text,
            i.price, i.description, i.audience, i.featured,
            (SELECT COUNT(*) FROM learning_lessons l WHERE l.item_id = i.id AND l.active) AS lesson_count,
            (SELECT COUNT(*) FROM learning_lessons l
@@ -1630,7 +1637,7 @@ LEARNING_LIST_SQL = """
            ul.saved_at, ul.subscribed_at, ul.started_at, ul.completed_at
     FROM learning_items i
     LEFT JOIN user_learning ul ON ul.item_id = i.id AND ul.user_id = %s
-    WHERE i.active AND (i.audience = 'both' OR i.audience = %s)
+    WHERE i.active AND (i.audience = 'both' OR i.audience = %s) AND i.item_type = %s
     ORDER BY (i.kind = 'braight') DESC, i.featured DESC, i.sort_order, i.id
 """
 
@@ -1673,7 +1680,7 @@ def _learning_who():
 
 def _learning_item_view(r):
     return {
-        "id": r["id"], "kind": r["kind"], "title": r["title"], "provider": r["provider"],
+        "id": r["id"], "kind": r["kind"], "itemType": r["item_type"], "title": r["title"], "provider": r["provider"],
         "url": r["url"], "topic": r["topic"], "level": r["level"], "duration": r["duration_text"],
         "price": r["price"], "description": r["description"], "audience": r["audience"],
         "featured": r["featured"],
@@ -1732,12 +1739,30 @@ def learning_list():
         if user_id is None:
             return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
         with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(LEARNING_LIST_SQL, (user_id, user_id, program))
+            cur.execute(LEARNING_LIST_SQL, (user_id, user_id, program, "course"))
             rows = cur.fetchall()
         return jsonify({"items": [_learning_item_view(r) for r in rows]}), 200
     except Exception:
         logger.exception("learning_list failed")
         return jsonify({"error": "Could not load your learning page."}), 500
+
+
+@app.route("/api/tools", methods=["GET"])
+@require_session
+def tools_list():
+    """Tools (Braight items made by an admin with 'New tool'), for the My Tools page.
+    Their lessons, state and media use the same /api/learning/... routes as courses."""
+    try:
+        user_id, program = _learning_who()
+        if user_id is None:
+            return jsonify({"error": "Authentication required.", "code": "AUTH_REQUIRED"}), 401
+        with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(LEARNING_LIST_SQL, (user_id, user_id, program, "tool"))
+            rows = cur.fetchall()
+        return jsonify({"items": [_learning_item_view(r) for r in rows]}), 200
+    except Exception:
+        logger.exception("tools_list failed")
+        return jsonify({"error": "Could not load your tools."}), 500
 
 
 @app.route("/api/learning/<int:item_id>/state", methods=["PUT"])
@@ -2003,11 +2028,18 @@ def _bool_field(data, key, default):
     return data[key]
 
 
-def _learning_item_fields(data, existing_kind=None):
-    kind = existing_kind or _choice(data, "kind", LEARNING_KINDS, label="Kind")
+def _learning_item_fields(data, existing_kind=None, existing_type=None):
+    item_type = existing_type or _choice(data, "item_type", LEARNING_ITEM_TYPES, default="course", label="Type")
+    if item_type == "tool":
+        kind = "braight"                       # a tool is always a Braight item
+        if not existing_kind and data.get("kind") not in (None, "", "braight"):
+            raise InputError("A tool must be a Braight item.")
+    else:
+        kind = existing_kind or _choice(data, "kind", LEARNING_KINDS, label="Kind")
     fields = {
+        "item_type": item_type,
         "title": _text(data, "title", 200, required=True, label="Title"),
-        "provider": _text(data, "provider", 100, label="Provider"),
+        "provider": "brAIght" if item_type == "tool" else _text(data, "provider", 100, label="Provider"),
         "topic": _choice(data, "topic", LEARNING_TOPICS, default="python", label="Topic"),
         "level": _choice(data, "level", LEARNING_LEVELS, default="beginner", label="Level"),
         "duration_text": _text(data, "duration", 40, label="Duration"),
@@ -2050,20 +2082,20 @@ def admin_learning_list():
         out = []
         for i in items:
             out.append({
-                "id": i["id"], "kind": i["kind"], "title": i["title"], "provider": i["provider"], "url": i["url"],
+                "id": i["id"], "kind": i["kind"], "item_type": i["item_type"], "title": i["title"], "provider": i["provider"], "url": i["url"],
                 "topic": i["topic"], "level": i["level"], "duration": i["duration_text"], "price": i["price"],
                 "description": i["description"], "audience": i["audience"], "featured": i["featured"],
                 "active": i["active"], "sort_order": i["sort_order"],
                 "subscribers": int(i["subscribers"]), "savers": int(i["savers"]), "completers": int(i["completers"]),
                 "lessons": by_item.get(i["id"], []),
             })
-        return jsonify({"items": out}), 200
+        return jsonify({"items": out, "itemTypes": sorted(LEARNING_ITEM_TYPES)}), 200
     except Exception:
         logger.exception("admin_learning_list failed")
         return jsonify({"error": "Could not load the learning content."}), 500
 
 
-_ITEM_COLUMNS = ("kind", "title", "provider", "url", "topic", "level", "duration_text", "price",
+_ITEM_COLUMNS = ("kind", "item_type", "title", "provider", "url", "topic", "level", "duration_text", "price",
                  "description", "audience", "featured", "active", "sort_order")
 
 
@@ -2084,7 +2116,7 @@ def admin_learning_create():
                 tuple(f[c] for c in _ITEM_COLUMNS),
             )
             new_id = cur.fetchone()[0]
-        return jsonify({"message": "Course added.", "id": new_id}), 201
+        return jsonify({"message": "Tool added." if f["item_type"] == "tool" else "Course added.", "id": new_id}), 201
     except pg_errors.UniqueViolation:
         return jsonify({"error": "A course with that link already exists."}), 409
     except Exception:
@@ -2098,20 +2130,20 @@ def admin_learning_update(item_id):
     data = request.get_json(silent=True) or {}
     try:
         with get_connection() as conn, conn.cursor() as cur:
-            cur.execute("SELECT kind FROM learning_items WHERE id = %s", (item_id,))
+            cur.execute("SELECT kind, item_type FROM learning_items WHERE id = %s", (item_id,))
             row = cur.fetchone()
             if row is None:
                 return jsonify({"error": "Course not found."}), 404
             try:
-                kind, f = _learning_item_fields(data, existing_kind=row[0])
+                kind, f = _learning_item_fields(data, existing_kind=row[0], existing_type=row[1])
             except InputError as exc:
                 return _bad_request(exc)
-            cols = [c for c in _ITEM_COLUMNS if c != "kind"]
+            cols = [c for c in _ITEM_COLUMNS if c not in ("kind", "item_type")]   # these two never change
             cur.execute(
                 "UPDATE learning_items SET " + ", ".join(f"{c} = %s" for c in cols) + " WHERE id = %s",
                 tuple(f[c] for c in cols) + (item_id,),
             )
-        return jsonify({"message": "Course saved."}), 200
+        return jsonify({"message": "Tool saved." if row[1] == "tool" else "Course saved."}), 200
     except pg_errors.UniqueViolation:
         return jsonify({"error": "A course with that link already exists."}), 409
     except Exception:
