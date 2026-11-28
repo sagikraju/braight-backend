@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Daily phrase translator — brAIght</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' fill='none'%3E%3Cpath d='M20 4L33 9V19C33 27.5 27.5 33.5 20 36.5C12.5 33.5 7 27.5 7 19V9Z' stroke='%237A9471' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M13 20.5L18 25.5L27.5 14' stroke='%23C89B5C' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#17324F; --navy-soft:#2B4A6B; --label:#8793A3; --border:#DCE3EC;
+  --bg:#FFFFFF; --panel:#FBFCFD; --icon:#A9B9C9; --moss:#7A9471; --amber:#C89B5C;
+  --text:#2B3A4A; --sub:#5B6B7D; --danger:#A23B3B; --ok:#2F6B34; --mk1:#7A9471; --mk2:#C89B5C;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+    --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --danger:#E7A8A8; --ok:#A9D6AE; --mk1:#9CB79A; --mk2:#D9B77C;
+  }
+}
+:root[data-theme="dark"] {
+  --navy:#EAF0F7; --navy-soft:#C9D8E6; --label:#92A0B2; --border:#2C3C4E;
+  --bg:#101823; --panel:#141E2B; --icon:#5E7187; --text:#E4EAF1; --sub:#AEBBCA; --danger:#E7A8A8; --ok:#A9D6AE; --mk1:#9CB79A; --mk2:#D9B77C;
+}
+* { box-sizing:border-box; }
+html { scroll-padding-top:env(safe-area-inset-top,0px); }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Source Sans 3',Arial,sans-serif; line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a { color:inherit; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+header { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); border-bottom:1px solid var(--border); }
+header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-top:14px; padding-bottom:14px; }
+.brand { font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:22px; text-decoration:none; color:var(--navy); }
+.brand { display:inline-flex; align-items:center; gap:9px; }
+.brand .ai { color:var(--moss); }
+header nav { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; align-items:center; }
+header nav a { text-decoration:none; color:var(--sub); padding:4px 0; border-bottom:2px solid transparent; }
+header nav a:hover { color:var(--navy); }
+.logout-btn { background:transparent; border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-family:inherit; font-size:14px; }
+.logout-btn:hover { background:var(--border); }
+
+h1,h2,h3 { font-family:'Source Serif 4',Georgia,serif; font-weight:700; color:var(--navy); margin:0; letter-spacing:-0.01em; }
+h1 { font-size:clamp(28px,4.4vw,40px); line-height:1.12; }
+h2 { font-size:clamp(20px,2.6vw,24px); line-height:1.2; }
+h3 { font-size:17px; line-height:1.3; }
+.lede { font-size:clamp(16px,2vw,18px); color:var(--sub); max-width:64ch; margin:14px 0 0; }
+.kicker { color:var(--label); font-weight:600; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px; }
+.hero { padding:44px 0 24px; }
+.block { padding:26px 0; border-top:1px solid var(--border); }
+
+.card { display:flex; flex-direction:column; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:640px; }
+.card.soon { border-style:dashed; background:transparent; }
+.card p { margin:0; color:var(--sub); }
+.tag { align-self:flex-start; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); border:1px solid var(--border); border-radius:999px; padding:1px 9px; }
+.noted { margin:16px 0 0; font-size:14px; color:var(--ok); min-height:1.4em; }
+
+.btn { display:inline-block; background:var(--amber); color:#17324F; font-weight:700; text-decoration:none; padding:10px 20px; border-radius:8px; font-family:inherit; font-size:15px; border:none; cursor:pointer; }
+.btn[disabled] { opacity:0.6; cursor:default; }
+.btn-small { padding:5px 12px; font-size:13.5px; border-radius:6px; font-weight:600; background:transparent; color:var(--navy); border:1px solid var(--border); }
+.btn-small:hover { background:var(--border); }
+.btn-small.danger { color:var(--danger); }
+.btn-small[disabled] { opacity:0.5; cursor:default; }
+
+.msg { display:none; padding:10px 12px; border-radius:8px; font-size:14px; margin:0 0 14px; max-width:640px; }
+.msg.error { background:#FBEAEA; border:1px solid #E3B8B8; color:#A23B3B; }
+.msg.ok { background:#EAF4EA; border:1px solid #B9D8B9; color:#2F6B34; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .msg.error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+  :root:not([data-theme="light"]) .msg.ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+}
+:root[data-theme="dark"] .msg.error { background:#3A1F22; border-color:#6B3236; color:#E7A8A8; }
+:root[data-theme="dark"] .msg.ok { background:#1E3023; border-color:#35573A; color:#A9D6AE; }
+
+.upload-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 22px; max-width:760px; }
+.upload-row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+.field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.field label { font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); }
+.field select, .field input[type=file] { max-width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-family:inherit; font-size:14.5px; }
+.hint { font-size:13px; color:var(--sub); margin:12px 0 0; }
+.doc-list { list-style:none; margin:0; padding:0; display:grid; gap:10px; max-width:900px; }
+.doc { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 16px; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 16px; }
+.doc-name { font-weight:600; color:var(--navy); overflow-wrap:anywhere; }
+.doc-meta { font-size:13px; color:var(--sub); }
+.doc-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.gate { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; justify-content:center; align-items:center; padding:16px; }
+.gate.show { display:flex; }
+.gate-box { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:420px; width:100%; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15); }
+.gate-box h3 { font-size:20px; margin:0 0 12px; }
+.gate-box p { color:var(--sub); margin:0 0 20px; font-size:15px; }
+.viewer { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; justify-content:center; align-items:center; padding:16px; }
+.viewer.show { display:flex; }
+.viewer-panel { background:var(--bg); border:1px solid var(--border); border-radius:12px; width:100%; max-width:920px; max-height:100%; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.25); }
+.viewer-head { display:flex; gap:10px; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); }
+.viewer-title { font-weight:600; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.viewer-head .doc-actions { flex-shrink:0; }
+.viewer-body { overflow:auto; padding:18px 22px; min-height:120px; }
+.viewer-body img { display:block; max-width:100%; height:auto; margin:0 auto; }
+.docx-view { font-family:Georgia,'Source Serif 4',serif; color:var(--text); line-height:1.6; overflow-wrap:anywhere; }
+.docx-view p { margin:0 0 10px; white-space:pre-wrap; }
+.docx-view h1,.docx-view h2,.docx-view h3 { margin:16px 0 8px; }
+.docx-view table { border-collapse:collapse; margin:8px 0 14px; max-width:100%; }
+.docx-view td { border:1px solid var(--border); padding:5px 9px; vertical-align:top; }
+.docx-note { font-size:13px; color:var(--sub); margin:0 0 14px; font-family:'Source Sans 3',Arial,sans-serif; }
+.empty { color:var(--sub); border:1px dashed var(--border); border-radius:12px; padding:22px; max-width:640px; }
+@media (max-width:560px) { .doc { grid-template-columns:minmax(0,1fr); } .doc-actions { justify-content:flex-start; } }
+
+footer { border-top:1px solid var(--border); padding:30px 0 40px; color:var(--sub); font-size:14px; }
+footer .wrap { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+footer b { color:var(--navy); }
+
+
+.back { display:inline-block; margin-bottom:14px; font-size:14px; color:var(--sub); text-decoration:none; border-bottom:2px solid transparent; }
+.back:hover { color:var(--navy); border-bottom-color:var(--amber); }
+.controls { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field label { font-size:12px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--label); }
+.field select { min-width:240px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-family:inherit; font-size:15px; }
+.field select:focus-visible { outline:2px solid var(--amber); outline-offset:1px; }
+.status { margin:14px 0 0; font-size:14px; color:var(--sub); min-height:1.4em; }
+.tablewrap { margin-top:14px; overflow-x:auto; border:1px solid var(--border); border-radius:12px; }
+table.phr { border-collapse:collapse; width:100%; min-width:560px; font-size:16px; }
+table.phr th, table.phr td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
+table.phr th { font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--label); background:var(--panel); position:sticky; top:0; }
+table.phr td:first-child, table.phr th:first-child { width:48px; text-align:center; color:var(--label); }
+table.phr tr:nth-child(odd) td { background:var(--panel); }
+table.phr tr:last-child td { border-bottom:0; }
+table.phr td.native { font-family:'Noto Sans Devanagari','Noto Sans Telugu','Noto Sans Tamil','Source Sans 3',Arial,sans-serif; font-size:17px; }
+.save { display:flex; gap:10px; margin-top:14px; }
+.btn-small { padding:7px 14px; font-size:14px; border-radius:8px; font-weight:600; background:transparent; color:var(--navy); border:1px solid var(--border); font-family:inherit; cursor:pointer; }
+.btn-small:hover:not([disabled]) { background:var(--border); }
+.btn-small[disabled] { opacity:0.5; cursor:default; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&family=Noto+Sans+Tamil:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:30px;height:30px">
+  <path d="M20 4L33 9V19C33 27.5 27.5 33.5 20 36.5C12.5 33.5 7 27.5 7 19V9Z" style="stroke:var(--mk1)" stroke-width="1.9" stroke-linejoin="round"/>
+  <path d="M13 20.5L18 25.5L27.5 14" style="stroke:var(--mk2)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="13" cy="20.5" r="1.6" style="fill:var(--mk2)"/><circle cx="27.5" cy="14" r="1.6" style="fill:var(--mk2)"/>
+  <path d="M18 25.5V30" style="stroke:var(--mk1)" stroke-width="1.6" stroke-linecap="round"/><circle cx="18" cy="30.5" r="1.2" style="fill:var(--mk1)"/>
+</svg><span>br<span class="ai">AI</span>ght</span></a>
+    <nav>
+      <a href="index.html#/schools">Schools &amp; Students</a>
+      <a href="index.html#/freshers">Freshers &amp; Job Seekers</a>
+      <a href="insights.html">Data Insights</a>
+      <button type="button" class="logout-btn" id="logout-btn">Log Out</button>
+    </nav>
+  </div>
+</header>
+
+<div class="user-layout">
+  <aside id="user-nav"></aside>
+  <main id="app">
+    <div class="wrap"><p class="lede">Loading…</p></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div><b>br<span class="ai" style="color:var(--moss)">AI</span>ght</b><br>Safe, smart AI for teens</div>
+    <div>sagikraju@braight.in<br>+91 99084 20198 &middot; Hyderabad, India</div>
+  </div>
+</footer>
+
+<script src="user-nav.js?v=2"></script>
+<script src="admin-session.js?v=3"></script>
+<script src="user-page.js?v=1"></script>
+<script>
+/* Phrase data, copied unchanged from daily_phrases.py */
+const D = {
+ "ENGLISH": [
+  "Good morning.",
+  "How are you?",
+  "I am fine, thank you.",
+  "What is your name?",
+  "Nice to meet you.",
+  "Please.",
+  "Thank you very much.",
+  "You're welcome.",
+  "Excuse me.",
+  "I am sorry.",
+  "Where is the bathroom?",
+  "How much does this cost?",
+  "I don't understand.",
+  "Can you help me?",
+  "Please speak slowly.",
+  "What time is it?",
+  "I am hungry.",
+  "I would like a glass of water.",
+  "Where are you from?",
+  "See you tomorrow.",
+  "Good night.",
+  "Have a nice day.",
+  "Do you speak English?",
+  "Please call a doctor.",
+  "Let's go."
+ ],
+ "TRANSLATIONS": {
+  "hindi": [
+   "सुप्रभात।",
+   "आप कैसे हैं?",
+   "मैं ठीक हूँ, धन्यवाद।",
+   "आपका नाम क्या है?",
+   "आपसे मिलकर खुशी हुई।",
+   "कृपया।",
+   "बहुत-बहुत धन्यवाद।",
+   "कोई बात नहीं।",
+   "ज़रा सुनिए।",
+   "मुझे माफ़ कीजिए।",
+   "शौचालय कहाँ है?",
+   "इसकी कीमत कितनी है?",
+   "मुझे समझ नहीं आया।",
+   "क्या आप मेरी मदद कर सकते हैं?",
+   "कृपया धीरे बोलिए।",
+   "कितने बजे हैं?",
+   "मुझे भूख लगी है।",
+   "मुझे एक गिलास पानी चाहिए।",
+   "आप कहाँ से हैं?",
+   "कल मिलते हैं।",
+   "शुभ रात्रि।",
+   "आपका दिन शुभ हो।",
+   "क्या आप अंग्रेज़ी बोलते हैं?",
+   "कृपया डॉक्टर को बुलाइए।",
+   "चलो चलें।"
+  ],
+  "telugu": [
+   "శుభోదయం.",
+   "మీరు ఎలా ఉన్నారు?",
+   "నేను బాగున్నాను, ధన్యవాదాలు.",
+   "మీ పేరు ఏమిటి?",
+   "మిమ్మల్ని కలవడం సంతోషంగా ఉంది.",
+   "దయచేసి.",
+   "చాలా ధన్యవాదాలు.",
+   "పర్వాలేదు.",
+   "క్షమించండి.",
+   "నన్ను క్షమించండి.",
+   "బాత్రూమ్ ఎక్కడ ఉంది?",
+   "దీని ధర ఎంత?",
+   "నాకు అర్థం కాలేదు.",
+   "మీరు నాకు సహాయం చేయగలరా?",
+   "దయచేసి నెమ్మదిగా మాట్లాడండి.",
+   "సమయం ఎంత అయింది?",
+   "నాకు ఆకలిగా ఉంది.",
+   "నాకు ఒక గ్లాసు నీళ్ళు కావాలి.",
+   "మీరు ఎక్కడి నుండి వచ్చారు?",
+   "రేపు కలుద్దాం.",
+   "శుభ రాత్రి.",
+   "మీ రోజు శుభంగా గడవాలి.",
+   "మీరు ఇంగ్లీష్ మాట్లాడతారా?",
+   "దయచేసి డాక్టర్‌ని పిలవండి.",
+   "వెళ్దాం."
+  ],
+  "tamil": [
+   "காலை வணக்கம்.",
+   "நீங்கள் எப்படி இருக்கிறீர்கள்?",
+   "நான் நன்றாக இருக்கிறேன், நன்றி.",
+   "உங்கள் பெயர் என்ன?",
+   "உங்களைச் சந்தித்ததில் மகிழ்ச்சி.",
+   "தயவுசெய்து.",
+   "மிக்க நன்றி.",
+   "பரவாயில்லை.",
+   "மன்னிக்கவும்.",
+   "என்னை மன்னியுங்கள்.",
+   "கழிவறை எங்கே இருக்கிறது?",
+   "இதன் விலை என்ன?",
+   "எனக்குப் புரியவில்லை.",
+   "எனக்கு உதவ முடியுமா?",
+   "தயவுசெய்து மெதுவாகப் பேசுங்கள்.",
+   "மணி என்ன?",
+   "எனக்குப் பசிக்கிறது.",
+   "எனக்கு ஒரு டம்ளர் தண்ணீர் வேண்டும்.",
+   "நீங்கள் எங்கிருந்து வருகிறீர்கள்?",
+   "நாளை சந்திப்போம்.",
+   "இனிய இரவு.",
+   "இந்த நாள் இனிய நாளாக அமையட்டும்.",
+   "நீங்கள் ஆங்கிலம் பேசுவீர்களா?",
+   "தயவுசெய்து மருத்துவரை அழையுங்கள்.",
+   "போகலாம்."
+  ],
+  "spanish": [
+   "Buenos días.",
+   "¿Cómo estás?",
+   "Estoy bien, gracias.",
+   "¿Cómo te llamas?",
+   "Mucho gusto.",
+   "Por favor.",
+   "Muchas gracias.",
+   "De nada.",
+   "Disculpe.",
+   "Lo siento.",
+   "¿Dónde está el baño?",
+   "¿Cuánto cuesta esto?",
+   "No entiendo.",
+   "¿Puede ayudarme?",
+   "Por favor, hable más despacio.",
+   "¿Qué hora es?",
+   "Tengo hambre.",
+   "Quisiera un vaso de agua.",
+   "¿De dónde eres?",
+   "Hasta mañana.",
+   "Buenas noches.",
+   "Que tengas un buen día.",
+   "¿Hablas inglés?",
+   "Llame a un médico, por favor.",
+   "Vamos."
+  ],
+  "french": [
+   "Bonjour.",
+   "Comment allez-vous ?",
+   "Je vais bien, merci.",
+   "Comment vous appelez-vous ?",
+   "Enchanté(e).",
+   "S'il vous plaît.",
+   "Merci beaucoup.",
+   "De rien.",
+   "Excusez-moi.",
+   "Je suis désolé(e).",
+   "Où sont les toilettes ?",
+   "Combien ça coûte ?",
+   "Je ne comprends pas.",
+   "Pouvez-vous m'aider ?",
+   "Parlez plus lentement, s'il vous plaît.",
+   "Quelle heure est-il ?",
+   "J'ai faim.",
+   "Je voudrais un verre d'eau.",
+   "D'où venez-vous ?",
+   "À demain.",
+   "Bonne nuit.",
+   "Bonne journée.",
+   "Parlez-vous anglais ?",
+   "Appelez un médecin, s'il vous plaît.",
+   "Allons-y."
+  ],
+  "german": [
+   "Guten Morgen.",
+   "Wie geht es Ihnen?",
+   "Mir geht es gut, danke.",
+   "Wie heißen Sie?",
+   "Freut mich, Sie kennenzulernen.",
+   "Bitte.",
+   "Vielen Dank.",
+   "Gern geschehen.",
+   "Entschuldigung.",
+   "Es tut mir leid.",
+   "Wo ist die Toilette?",
+   "Wie viel kostet das?",
+   "Ich verstehe nicht.",
+   "Können Sie mir helfen?",
+   "Bitte sprechen Sie langsamer.",
+   "Wie spät ist es?",
+   "Ich habe Hunger.",
+   "Ich hätte gern ein Glas Wasser.",
+   "Woher kommen Sie?",
+   "Bis morgen.",
+   "Gute Nacht.",
+   "Einen schönen Tag noch.",
+   "Sprechen Sie Englisch?",
+   "Bitte rufen Sie einen Arzt.",
+   "Los geht's."
+  ]
+ },
+ "ROMANIZED": {
+  "hindi": [
+   "Suprabhaat.",
+   "Aap kaise hain?",
+   "Main theek hoon, dhanyavaad.",
+   "Aapka naam kya hai?",
+   "Aapse milkar khushi hui.",
+   "Kripya.",
+   "Bahut-bahut dhanyavaad.",
+   "Koi baat nahin.",
+   "Zara suniye.",
+   "Mujhe maaf keejiye.",
+   "Shauchaalay kahaan hai?",
+   "Iski keemat kitni hai?",
+   "Mujhe samajh nahin aaya.",
+   "Kya aap meri madad kar sakte hain?",
+   "Kripya dheere boliye.",
+   "Kitne baje hain?",
+   "Mujhe bhookh lagi hai.",
+   "Mujhe ek gilaas paani chaahiye.",
+   "Aap kahaan se hain?",
+   "Kal milte hain.",
+   "Shubh raatri.",
+   "Aapka din shubh ho.",
+   "Kya aap angrezi bolte hain?",
+   "Kripya doctor ko bulaaiye.",
+   "Chalo chalen."
+  ],
+  "telugu": [
+   "Shubhodayam.",
+   "Meeru ela unnaaru?",
+   "Nenu baagunnaanu, dhanyavaadaalu.",
+   "Mee peru emiti?",
+   "Mimmalni kalavadam santoshamgaa undi.",
+   "Dayachesi.",
+   "Chaalaa dhanyavaadaalu.",
+   "Parvaaledu.",
+   "Kshaminchandi.",
+   "Nannu kshaminchandi.",
+   "Bathroom ekkada undi?",
+   "Deeni dhara entha?",
+   "Naaku artham kaaledu.",
+   "Meeru naaku sahaayam cheyagalaraa?",
+   "Dayachesi nemmadigaa maatlaadandi.",
+   "Samayam entha ayindi?",
+   "Naaku aakaligaa undi.",
+   "Naaku oka glaasu neellu kaavaali.",
+   "Meeru ekkadi nundi vachchaaru?",
+   "Repu kaluddaam.",
+   "Shubha raatri.",
+   "Mee roju shubhamgaa gadavaali.",
+   "Meeru English maatlaadataaraa?",
+   "Dayachesi doctor-ni pilavandi.",
+   "Veldaam."
+  ],
+  "tamil": [
+   "Kaalai vanakkam.",
+   "Neengal eppadi irukkireergal?",
+   "Naan nandraaga irukkiren, nandri.",
+   "Ungal peyar enna?",
+   "Ungalai sandhiththadhil magizhchi.",
+   "Thayavuseydhu.",
+   "Mikka nandri.",
+   "Paravaayillai.",
+   "Mannikkavum.",
+   "Ennai manniyungal.",
+   "Kazhivarai enge irukkiradhu?",
+   "Idhan vilai enna?",
+   "Enakku puriyavillai.",
+   "Enakku udhava mudiyumaa?",
+   "Thayavuseydhu medhuvaagap pesungal.",
+   "Mani enna?",
+   "Enakkup pasikkiradhu.",
+   "Enakku oru tumbler thanneer vendum.",
+   "Neengal engirundhu varugireergal?",
+   "Naalai sandhippom.",
+   "Iniya iravu.",
+   "Indha naal iniya naalaaga amaiyattum.",
+   "Neengal aangilam pesuveergalaa?",
+   "Thayavuseydhu maruththuvarai azhaiyungal.",
+   "Pogalaam."
+  ]
+ }
+};
+const ENGLISH = D.ENGLISH, TRANSLATIONS = D.TRANSLATIONS, ROMANIZED = D.ROMANIZED;
+const NATIVE_COL = 'In native language', ROMAN_COL = 'In English letters';
+
+function esc(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
+function titleCase(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function dropdownChoices() { return Object.keys(TRANSLATIONS).map(titleCase).sort(); }
+
+/* rows are [english, native, romanized-or-null] */
+function buildRows(key) {
+  const tr = TRANSLATIONS[key], rom = ROMANIZED[key];
+  return ENGLISH.map(function (e, i) { return [e, tr[i], rom ? rom[i] : null]; });
+}
+function headersFor(rows) {
+  const cols = ['#', 'English', NATIVE_COL];
+  if (rows.length && rows[0][2] !== null) cols.push(ROMAN_COL);
+  return cols;
+}
+function csvCell(v) { v = String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function toCsv(rows) {
+  const cols = headersFor(rows);
+  const lines = [cols.map(csvCell).join(',')];
+  rows.forEach(function (r, i) { lines.push([i + 1].concat(r.slice(0, cols.length - 1)).map(csvCell).join(',')); });
+  return '\ufeff' + lines.join('\r\n') + '\r\n';   // BOM so Excel shows Indian scripts correctly
+}
+function toHtml(language, rows) {
+  const cols = headersFor(rows);
+  const head = cols.map(function (c) { return '<th>' + c + '</th>'; }).join('');
+  const body = rows.map(function (r, i) {
+    return '<tr><td>' + (i + 1) + '</td>' + r.slice(0, cols.length - 1).map(function (v) { return '<td>' + esc(v) + '</td>'; }).join('') + '</tr>';
+  }).join('\n');
+  return '<!DOCTYPE html>\n<html><head><meta charset="utf-8">\n<title>Daily Phrases: English - ' + language + '</title>\n<style>\n' +
+    ' body { font-family: system-ui, sans-serif; margin: 2rem; }\n table { border-collapse: collapse; }\n' +
+    ' th, td { border: 1px solid #ccc; padding: 6px 12px; text-align: left; }\n th { background: #f0f0f0; }\n' +
+    ' tr:nth-child(even) td { background: #fafafa; }\n</style></head><body>\n<h2>Daily Phrases: English &rarr; ' + language + '</h2>\n<table>\n<tr>' + head + '</tr>\n' + body + '\n</table></body></html>';
+}
+function download(name, mime, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+UserPage.start(function (user, root) {
+  root.innerHTML =
+    '<div class="wrap"><div class="hero"><a class="back" href="MyTools.html">&larr; My Tools</a><div class="kicker">My Tools</div>' +
+    '<h1>Daily phrase translator</h1>' +
+    '<p class="lede">Pick a language to see 25 everyday English sentences next to their translation. Languages that do not use English letters also show how to say each sentence.</p></div>' +
+    '<section class="block"><div class="controls"><div class="field"><label for="lang">Select a language</label>' +
+    '<select id="lang"><option value="" selected disabled>Choose&hellip;</option>' +
+    dropdownChoices().map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') + '</select></div></div>' +
+    '<p class="status" id="status" role="status">Pick a language from the dropdown.</p>' +
+    '<div class="tablewrap" id="tablewrap" hidden></div>' +
+    '<div class="save"><button type="button" class="btn-small" id="csv" disabled>Save as CSV</button>' +
+    '<button type="button" class="btn-small" id="html" disabled>Save as HTML</button></div></section></div>';
+
+  const sel = document.getElementById('lang'), status = document.getElementById('status'),
+        wrap = document.getElementById('tablewrap'), csvBtn = document.getElementById('csv'), htmlBtn = document.getElementById('html');
+  let rows = [], language = '';
+
+  function show() {
+    const choice = sel.value;
+    if (!choice) { status.textContent = 'Please choose a language from the dropdown.'; return; }
+    language = choice;
+    rows = buildRows(choice.toLowerCase());
+    const cols = headersFor(rows);
+    wrap.innerHTML = '<table class="phr"><thead><tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (r, i) {
+        return '<tr><td>' + (i + 1) + '</td><td>' + esc(r[0]) + '</td><td class="native">' + esc(r[1]) + '</td>' + (cols.length > 3 ? '<td>' + esc(r[2]) + '</td>' : '') + '</tr>';
+      }).join('') + '</tbody></table>';
+    wrap.hidden = false;
+    status.textContent = 'Showing ' + rows.length + ' phrases: English -> ' + choice;
+    csvBtn.disabled = htmlBtn.disabled = false;
+  }
+  function fname(ext) { return 'daily_phrases_' + language.toLowerCase().split(' ')[0] + ext; }
+  sel.addEventListener('change', show);
+  csvBtn.addEventListener('click', function () { download(fname('.csv'), 'text/csv;charset=utf-8', toCsv(rows)); status.textContent = 'Saved ' + fname('.csv'); });
+  htmlBtn.addEventListener('click', function () { download(fname('.html'), 'text/html;charset=utf-8', toHtml(language, rows)); status.textContent = 'Saved ' + fname('.html'); });
+});
+</script>
+</body>
+</html>

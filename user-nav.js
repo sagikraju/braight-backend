@@ -29,7 +29,8 @@
     { label: 'My Learning', href: 'MyLearning.html' },
     { label: 'My Payments', href: 'MyPayments.html' },
     { label: 'My Subscriptions', href: 'MySubscriptions.html' },
-    { label: 'My Documents', href: 'MyDocuments.html' }
+    { label: 'My Documents', href: 'MyDocuments.html' },
+    { label: 'My Tools', href: 'MyTools.html', match: ['dailyphrasetranslator.html'] }
   ];
 
   var current = (location.pathname.split('/').pop() || '').toLowerCase();
